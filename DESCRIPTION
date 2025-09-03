@@ -1,0 +1,38 @@
+Package: astrolabe
+Title: Astrolabe: An Entropy-based Method for Causality on Quantitative Outcomes in R
+Version: 0.0.0.9000
+Authors@R: 
+    c(
+      person("Federica", "Grosso", email = "federicagrosso31@gmail.com,", role ="aut"),
+      person("Fabio", "Chillotti", email = "astrolabe.dispense778@passinbox.com", role = c("aut","cre"))
+    )
+Authors: Fabio Chillotti <astrolabe.dispense778@passinbox.com>
+            Federica Grosso <federicagrosso31@gmail.com> 
+Description: This vignette illustrates the methodology implemented in the astrolabe package, an R tool for inferring non-linear causal relationships among variables. The package combines random forest models with differential entropy estimation of residuals, followed by bootstrap-permutation testing and variable-importance-based selection.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Depends: 
+    R (>= 3.5)
+Imports:
+    MASS,
+    tidygraph,
+    randomForest,
+    parallel,
+    pbmcapply,
+    ggplot2,
+    patchwork,
+    cowplot,
+    randomForestSRC,
+    plotly,
+    FNN,
+    igraph,
+    ggraph,
+    RColorBrewer,
+    dagitty,
+    ggdag,
+    rlang,
+    combinat,
+    dbscan,
+    PCAmixdata
