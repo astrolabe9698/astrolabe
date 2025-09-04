@@ -8,9 +8,9 @@ The approach combines machine learning with information-theoretic principles, us
 The method relies on the entropy of residuals from models fitted with **random forests**.  
 We define a score for each model:
 
-\[
+\begin{equation}
 H(m) = e^{-S_{\text{knn}}(m)} ,
-\]
+\end{equation}
 
 where \( S_{\text{knn}}(m) \) is a **Kozachenko–Leonenko entropy estimator** applied to the joint space of predictors and residuals.  
 This formulation is robust for continuous residuals and avoids sensitivity to binning choices, as entropy is estimated from the geometry of nearest-neighbour distances.
