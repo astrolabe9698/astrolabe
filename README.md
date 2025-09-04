@@ -67,12 +67,10 @@ library(astrolabe)
 scan_res <- complete_function(
   df,
   verbose = TRUE,
-  n_boot = 10,
-  n_perm = 10,
+  n_boot = 300,
+  n_perm = 50,
   plot = TRUE,
-  importance_method = "net_clust",
-  quantitative_thr = 35,
-  n_cores = 4
+  importance_method = "neg_exp"
 )
 
 # Inspect results
