@@ -21,7 +21,7 @@ This framework is suitable for detecting non-linear causality in high-dimensiona
 
 ## 📐 Mathematical Details
 
-The causal score for a model \( m \) is defined as
+The causal score for a model $m$ is defined as
 
 $$
 H(m) = e^{-S_{\text{knn}}(m)} ,
