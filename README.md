@@ -11,8 +11,8 @@ The method relies on the entropy of residuals from models fitted with **random f
 The workflow is:
 
 1. Fit random forest models for candidate causal directions.  
-2. Compute the residual entropy score \( H \).  
-3. Perform **bootstrap–permutation testing** to assess significance.  
+2. Compute the residual entropy score $H$.  
+3. Perform **bootstrap–permutation testing** to assess significance. 
 4. Select relevant predictors via **variable importance measures**.  
 
 This framework is suitable for detecting non-linear causality in high-dimensional datasets, where traditional linear approaches may fail.
@@ -51,7 +51,7 @@ This formulation avoids sensitivity to binning choices and is well suited for co
 ### Development version (from GitHub)
 ```r
 # install.packages("remotes") # if not already installed
-remotes::install_github("your-username/astrolabe")
+remotes::install_github("astrolabe9698/astrolabe")
 ```
 
 
