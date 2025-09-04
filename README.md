@@ -37,14 +37,8 @@ remotes::install_github("astrolabe9698/astrolabe")
 ```r
 library(astrolabe)
 
-set.seed(1)
 # Tiny synthetic example (nonlinear + noise)
-n  <- 400
-X  <- rnorm(n)
-W  <- rnorm(n)
-Y  <- sin(X) + 0.3*W^2 + rnorm(n, 0, 0.15)
-Z  <- X^2 + rnorm(n, 0, 0.2)
-df <- data.frame(X, W, Y, Z)
+df <- your_data
 
 # End-to-end pipeline (multi-outcome scan + robust validation + pairwise)
 out <- complete_function(
@@ -54,10 +48,9 @@ out <- complete_function(
   n_perm = 50,
   ntree  = 500,
   importance_method = "neg_exp",
-  plot = TRUE, layout = "kk"
+  plot = TRUE
 )
-out$graph    # ggplot object of the combined DAG
-out$res_all  # merged edges data frame
+
 ```
 
 ---
@@ -119,7 +112,7 @@ robust[[1]]$significant
 
 ---
 
-### 3) End-to-end pipeline: `complete_function()`
+### 3) Complete pipeline: `complete_function()`
 
 **What it does.**  
 Runs everything in sequence:
@@ -164,7 +157,8 @@ out$graph      # ggplot DAG
 - Always `set.seed()` for reproducibility  
 - Use `n_cores` to parallelize (defaults to `detectCores()-1`)  
 - Plot layouts: `"kk"`, `"fr"`, `"sugiyama"`  
-- Mixed data types are handled automatically (numeric/factors)  
+- Mixed data types are handled automatically (numeric/factors)
+- Use `always_predictios` to set as predictor a variable that can never be an outcome (for example time in a longitudinal dataset)
 
 ---
 
