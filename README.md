@@ -11,10 +11,13 @@ For each candidate direction, astrolabe fits a tuned random forest, computes res
 
 Mathematical score:
 $$
-H(m) \;=\; e^{-S_{\text{knn}}(m)} \quad \text{with} \quad
-S_{\text{knn}} pprox \psi(n)-\psi(k) + \log c_d + \frac{d}{n}\sum_i \log \varepsilon_i .
+H(m) = e^{-S_{\text{knn}}(m)} ,
 $$
 
+where $S(m)$ is:
+$$
+S_{\text{knn}}(m) \approx \psi(n) - \psi(k) + \log(c_d) + \frac{d}{n} \sum_{i=1}^n \log \varepsilon_i ,
+$$
 ---
 
 ## 📦 Installation
