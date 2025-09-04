@@ -19,9 +19,9 @@ This framework is suitable for detecting non-linear causality in high-dimensiona
 
 The causal score for a model \( m \) is defined as
 
-\[
+$$
 H(m) = e^{-S_{\text{knn}}(m)} ,
-\]
+$$
 
 where \( S_{\text{knn}}(m) \) is a **Kozachenko–Leonenko type entropy estimator**  
 \[[Kozachenko & Leonenko, 1987](https://doi.org/10.1007/BF01066342)\] applied to the joint space of predictors and residuals.  
