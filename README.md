@@ -10,10 +10,13 @@ It couples random forests with an information-theoretic objective: the (negative
 For each candidate direction, astrolabe fits a tuned random forest, computes residuals, and evaluates a **Kozachenko–Leonenko** k-NN entropy on the joint space of predictors + residual. It then (optionally) drills down by pruning low-importance predictors, and validates findings via bootstrap + permutation. The full pipeline can also add a robust **pairwise direction matrix** for 2-variable edges and merge both sources into a single DAG.
 
 Mathematical score:
+
 $$
 H(m) = e^{-S_{\text{knn}}(m)} ,
 $$
+
 where $S(m)$ is:
+
 $$
 S_{\text{knn}}(m) \approx \psi(n) - \psi(k) + \log(c_d) + \frac{d}{n} \sum_{i=1}^n \log \varepsilon_i ,
 $$
