@@ -33,10 +33,10 @@ S_{\text{knn}}(m) \approx \psi(n) - \psi(k) + \log(c_d) + \frac{d}{n} \sum_{i=1}
 $$
 
 where:
-- \( \psi \) is the digamma function,  
-- \( c_d \) is the volume of the \( d \)-dimensional unit ball,  
-- \( \varepsilon_i \) is the distance to the \( k \)-th nearest neighbour of observation \( i \)  
-  in the space \((X_1, X_2, ..., X_{d-1}, Y - \hat{Y})\).  
+- $\psi$ is the digamma function,  
+- $c_d$ is the volume of the $d$-dimensional unit ball,  
+- $\varepsilon_i$ is the distance to the \( k \)-th nearest neighbour of observation $i$
+  in the space $(X_1, X_2, ..., X_{d-1}, Y - \hat{Y})$.  
 
 This formulation avoids sensitivity to binning choices and is well suited for continuous residuals, since entropy is estimated from the geometry of neighbour distances.
 
