@@ -37,7 +37,7 @@ remotes::install_github("astrolabe9698/astrolabe")
 ```r
 library(astrolabe)
 
-# Tiny synthetic example (nonlinear + noise)
+# load data
 df <- your_data
 
 # End-to-end pipeline (multi-outcome scan + robust validation + pairwise)
