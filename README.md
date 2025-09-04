@@ -27,7 +27,7 @@ $$
 H(m) = e^{-S_{\text{knn}}(m)} ,
 $$
 
-where \( S_{\text{knn}}(m) \) is a Kozachenko–Leonenko type entropy estimator  
+where $S_{\text{knn}}(m)$ is a Kozachenko–Leonenko type entropy estimator  
 ([Kozachenko & Leonenko, 1987](https://doi.org/10.1007/BF01066342)) applied to the joint space of predictors and residuals.  
 
 Specifically:
@@ -37,10 +37,10 @@ S_{\text{knn}}(m) \approx \psi(n) - \psi(k) + \log(c_d) + \frac{d}{n} \sum_{i=1}
 $$
 
 with:
-- \( \psi \): the digamma function  
-- \( c_d \): volume of the \( d \)-dimensional unit ball  
-- \( \varepsilon_i \): distance to the \( k \)-th nearest neighbour of observation \( i \)  
-  in the space \((X_1, X_2, ..., X_{d-1}, Y - \hat{Y})\).  
+- $\psi$: the digamma function  
+- $c_d$: volume of the $d$-dimensional unit ball  
+- $\varepsilon_i$: distance to the $k$-th nearest neighbour of observation $i$  
+  in the space $(X_1, X_2, ..., X_{d-1}, Y - \hat{Y})$.  
 
 This formulation avoids sensitivity to binning choices and is well suited for continuous residuals, since entropy is estimated from the geometry of neighbour distances.
 
@@ -52,4 +52,4 @@ This formulation avoids sensitivity to binning choices and is well suited for co
 ```r
 # install.packages("remotes") # if not already installed
 remotes::install_github("your-username/astrolabe")
-
+```
