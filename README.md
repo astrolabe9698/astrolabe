@@ -9,7 +9,7 @@ The method relies on the entropy of residuals from models fitted with **random f
 The workflow is:
 
 1. Fit random forest models for candidate causal directions.  
-2. Compute the residual entropy score \( H \).  
+2. Compute the residual entropy score $H$.  
 3. Perform **bootstrap–permutation testing** to assess significance.  
 4. Select relevant predictors via **variable importance measures**.  
 
@@ -17,13 +17,13 @@ This framework is suitable for detecting non-linear causality in high-dimensiona
 
 ## 📐 Mathematical Details
 
-The causal score for a model \( m \) is defined as
+The causal score for a model $m$ is defined as
 
 $$
 H(m) = e^{-S_{\text{knn}}(m)} ,
 $$
 
-where \( S_{\text{knn}}(m) \) is a **Kozachenko–Leonenko type entropy estimator**  
+where $S_{\text{knn}}(m)$ is a **Kozachenko–Leonenko type entropy estimator**  
 \[[Kozachenko & Leonenko, 1987](https://doi.org/10.1007/BF01066342)\] applied to the joint space of predictors and residuals.  
 
 Specifically,
