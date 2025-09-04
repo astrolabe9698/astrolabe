@@ -53,3 +53,28 @@ This formulation avoids sensitivity to binning choices and is well suited for co
 # install.packages("remotes") # if not already installed
 remotes::install_github("your-username/astrolabe")
 ```
+
+
+## 🧪 Example Workflow
+
+The package is designed for flexible causal discovery on simulated or real datasets.  
+Below we show a typical workflow with `astrolabe`.
+
+```r
+library(astrolabe)
+
+# Run causal inference
+scan_res <- complete_function(
+  df,
+  verbose = TRUE,
+  n_boot = 10,
+  n_perm = 10,
+  plot = TRUE,
+  importance_method = "net_clust",
+  quantitative_thr = 35,
+  n_cores = 4
+)
+
+# Inspect results
+print(scan_res)
+
