@@ -1,4 +1,4 @@
-# astrolabe <img src="man/figures/logo.png" align="left" width="120" />
+# astrolabe <img src="man/figures/logo.png" align="left" width="60" />
 
 **astrolabe** is an R package that implements a novel methodology for inferring **non-linear causal relationships** among variables.  
 The approach combines machine learning with information-theoretic principles, using entropy of residuals to evaluate causal directions.
