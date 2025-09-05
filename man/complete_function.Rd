@@ -14,79 +14,135 @@ complete_function(
   n_cores = parallel::detectCores() - 1,
   verbose = TRUE,
   always_predictors = NULL,
-  plot = TRUE,
   which = c("all", "robust", "binary"),
   categorical_thr = 35,
   quantitative_thr = 40,
   importance_method = c("fixed", "neg_exp", "net_clust"),
-  prob = 0.75
+  prob = 0.75,
+  plot = TRUE,
+  curved = NULL,
+  layout = "auto",
+  pad = 0.4,
+  arrow_len_pt = 8,
+  end_cap_mm = 8,
+  linewidth = 0.75,
+  node_size = 20,
+  node_stroke = 1,
+  strength_curved = 0.6
 )
 }
 \arguments{
-\item{df}{Data frame with variables to analyze (predictors + outcomes).}
+\item{df}{A data frame with variables to analyze (predictors + outcomes).}
 
-\item{n_boot}{Integer. Number of bootstraps (\code{B}) for robustness/binary stages (default \code{100}).}
+\item{n_boot}{Integer. Number of bootstraps (\code{B}) for robust/binary stages. Default \code{100}.}
 
-\item{n_perm}{Integer. Number of permutations (\code{P}) for robustness/binary stages (default \code{50}).}
+\item{n_perm}{Integer. Number of permutations (\code{P}) for robust/binary stages. Default \code{50}.}
 
-\item{alpha}{Numeric in (0,1). Significance level for permutation tests (default \code{0.05}).}
+\item{alpha}{Numeric in (0, 1). Significance level for permutation tests. Default \code{0.05}.}
 
-\item{ntree}{Integer. Number of trees for Random Forest fits (default \code{500}).}
+\item{ntree}{Integer. Number of trees for Random Forest fits. Default \code{500}.}
 
 \item{seed}{Optional integer random seed.}
 
-\item{n_cores}{Integer. Parallel cores for \code{parallel::mclapply()} (default \code{parallel::detectCores()-1}).}
+\item{n_cores}{Integer. Parallel cores for \code{parallel::mclapply()}.
+Default \code{parallel::detectCores() - 1}.}
 
-\item{verbose}{Logical. Print progress messages (default \code{TRUE}).}
+\item{verbose}{Logical. If \code{TRUE}, print progress messages. Default \code{TRUE}.}
 
-\item{always_predictors}{Optional character vector; columns forced to be considered as predictors.}
-
-\item{plot}{Logical. If \code{TRUE}, build a combined causal graph (default \code{TRUE}).}
+\item{always_predictors}{Optional character vector; column names forced to be considered as predictors.}
 
 \item{which}{One of \code{"all"}, \code{"robust"}, \code{"binary"}:
-controls which parts of the pipeline are executed.
-With 2 columns in \code{df} it coerces to \code{"binary"}.}
+controls which stages of the pipeline are executed.
+If \code{df} has exactly 2 columns, the mode is coerced to \code{"binary"}.}
 
-\item{categorical_thr}{Numeric. Threshold for categorical variables in \code{evaluate_importance()} (default \code{35}).}
+\item{categorical_thr}{Numeric. Threshold for categorical variables in \code{evaluate_importance()}.
+Default \code{35}.}
 
-\item{quantitative_thr}{Numeric. Threshold for quantitative variables in \code{evaluate_importance()} (default \code{40}).}
+\item{quantitative_thr}{Numeric. Threshold for quantitative variables in \code{evaluate_importance()}.
+Default \code{40}.}
 
-\item{importance_method}{One of \code{"fixed"}, \code{"neg_exp"}, \code{"net_clust"}; strategy for \code{evaluate_importance()}.}
+\item{importance_method}{One of \code{"fixed"}, \code{"neg_exp"}, \code{"net_clust"}; strategy used by
+\code{evaluate_importance()}.}
 
-\item{prob}{Numeric. Probability cutoff for the neural network when \code{importance_method="net_clust"} (default \code{0.75}).}
+\item{prob}{Numeric. Probability cutoff used when \code{importance_method = "net_clust"}.
+Default \code{0.75}.}
+
+\item{plot}{Logical. If \code{TRUE}, build and print a combined causal graph. Default \code{TRUE}.}
+
+\item{curved}{See \code{\link{draw_dag}}: which edges to draw as arcs (\code{NULL}, logical vector,
+character keys \code{"X->Y"}, or \code{data.frame(from,to)}).}
+
+\item{layout}{Graph layout name passed to \code{ggraph}. Examples: \code{"auto"}, \code{"kk"},
+\code{"fr"}, \code{"sugiyama"}, \code{"linear"}. Default \code{"auto"}.}
+
+\item{pad}{Numeric padding added around computed x/y ranges for the plot. Default \code{0.4}.}
+
+\item{arrow_len_pt}{Arrow length (points) for directed edges. Default \code{8}.}
+
+\item{end_cap_mm}{End cap radius (millimeters) for edge arrows. Default \code{8}.}
+
+\item{linewidth}{Edge line width. Default \code{0.75}.}
+
+\item{node_size}{Node point size. Default \code{20}.}
+
+\item{node_stroke}{Node point stroke width. Default \code{1}.}
+
+\item{strength_curved}{Curvature strength for curved edges (passed to \code{ggraph::geom_edge_arc2()}).
+Non-curved edges use 0. Default \code{0.6}.}
 }
 \value{
-A list with elements:
+A list with:
 \itemize{
 \item \code{scan_res}: results from \code{scan_all_outcomes_complete()} (or \code{NULL});
 \item \code{robust}: results from \code{robust_scan_all_outcomes()} (or \code{NULL});
 \item \code{binary}: list of matrices from \code{cor_forest_matrix_robust_perm()} (or \code{NULL});
-\item \code{graph}: igraph (or similar) object returned by \code{plot_causal_graph_igraph()} (or \code{NULL});
-\item \code{plot}: a recorded plot (from \code{grDevices::recordPlot()}) if \code{plot=TRUE}, else \code{NULL}.
+\item \code{graph}: a \strong{ggplot} object returned by \code{draw_dag()} (or \code{NULL});
+\item \code{res_all}: combined edge data.frame used for plotting (from/pairwise/complex/both).
 }
 }
 \description{
-Runs the full pipeline on \code{df}: (i) preprocessing of columns (coercion to
+Runs the full pipeline on \code{df}: (i) column preprocessing (coercion to
 factor or numeric with rare-level handling), (ii) multi-outcome scan via
 \code{scan_all_outcomes_complete()}, (iii) robust validation with bootstrap +
 permutation via \code{robust_scan_all_outcomes()}, and (iv) optional binary
 pairwise direction matrix via \code{cor_forest_matrix_robust_perm()}.
-Optionally draws a causal graph combining robust multi-outcome and binary evidence.
+Optionally draws a causal graph that combines robust multi-outcome and binary evidence.
 }
 \details{
-Columns are preprocessed as follows: low-cardinality numeric are converted to factors;
-high-cardinality non-numeric are coerced to numeric when safe (see \code{can_coerce_numeric()}),
-otherwise factored with rare-level grouping and dominance checks. Some columns may be
-appended to \code{always_predictors} during this stage to stabilize scanning.
+\strong{Preprocessing.} Columns are preprocessed to stabilize the scans:
+(a) low-cardinality numeric vectors are converted to factors; (b) high-cardinality
+non-numeric vectors are coerced to numeric when \code{can_coerce_numeric()} returns \code{TRUE}
+(dropping rows that cannot be safely coerced), otherwise they are factored with rare-level
+grouping and dominance checks; (c) strongly dominant categorical columns may be binarized
+or dropped. During this stage, some columns may be appended to \code{always_predictors}.
+
+\strong{Scanning.} If \code{which \%in\% c("all","robust")}, \code{scan_all_outcomes_complete()}
+runs first, followed by \code{robust_scan_all_outcomes()} which applies bootstrap (\code{B = n_boot})
+and permutation tests (\code{P = n_perm}) at level \code{alpha}.
+
+\strong{Binary pairs.} If \code{which \%in\% c("all","binary")}, the binary direction matrix is
+computed via \code{cor_forest_matrix_robust_perm()} with its own bootstrap/permutation routine.
+
+\strong{Graph.} When \code{plot = TRUE}, a combined edge set is built by merging robust multi-outcome
+relations (labeled \code{"complex"}) and significant binary pairs (labeled \code{"pairwise"}).
+Overlaps are labeled \code{"both"}. The graph is drawn with \code{\link{draw_dag}} using the provided
+layout/curvature/appearance settings.
 }
 \examples{
 \dontrun{
 set.seed(123)
 out <- complete_function(
-  df, n_boot = 50, n_perm = 200, ntree = 400,
-  which = "all", verbose = TRUE
+  df,
+  n_boot = 50, n_perm = 200, ntree = 400,
+  which = "all", verbose = TRUE,
+  plot = TRUE, layout = "kk"
 )
-out$graph  # combined causal graph object
+
+# Combined graph object (ggplot):
+out$graph
+
+# Combined edges used for plotting:
+out$res_all
 }
 
 }
@@ -95,5 +151,5 @@ out$graph  # combined causal graph object
 \code{\link{robust_scan_all_outcomes}},
 \code{\link{cor_forest_matrix_robust_perm}},
 \code{\link{can_coerce_numeric}},
-\code{\link{plot_causal_graph_igraph}}
+\code{\link{draw_dag}}
 }

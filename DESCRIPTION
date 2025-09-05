@@ -1,4 +1,4 @@
-Package: astrolabe
+Package: astrolabe 
 Title: Astrolabe: An Entropy-based Method for Causality on Quantitative Outcomes in R
 Version: 0.0.0.9000
 Authors@R: 
@@ -16,23 +16,13 @@ RoxygenNote: 7.3.2
 Depends: 
     R (>= 3.5)
 Imports:
-    MASS,
-    tidygraph,
     randomForest,
     parallel,
     pbmcapply,
-    ggplot2,
-    patchwork,
-    cowplot,
-    randomForestSRC,
-    plotly,
     FNN,
+    ggplot2,
+    grid,
     igraph,
     ggraph,
-    RColorBrewer,
-    dagitty,
-    ggdag,
-    rlang,
-    combinat,
     dbscan,
     PCAmixdata
