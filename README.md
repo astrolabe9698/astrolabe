@@ -19,7 +19,7 @@ $$
 S_{knn}(m) \approx \psi(n) - \psi(k) + \log(c_d) + \frac{d}{n} \sum_{i=1}^n \log \varepsilon_i ,
 $$
 
-The $H$-score allows to compare different models with one another giving the possibility to choose the best one.
+The H-score allows to compare different models with one another giving the possibility to choose the best one.
 ---
 
 ## 📦 Installation
