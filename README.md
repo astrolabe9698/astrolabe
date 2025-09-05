@@ -1,21 +1,19 @@
 # astrolabe <img src="man/figures/logo.png" align="left" width="120" />
 
 **astrolabe** is an R package for inferring **non-linear causal relations** among variables.  
-It couples random forests with an information-theoretic objective: the (negative) entropy of residuals. Higher scores imply “cleaner” residuals conditional on the chosen predictors — a proxy for causality.
+It couples random forests with an information-theoretic objective: the entropy of residuals. Higher scores imply “cleaner” residuals on the chosen predictors — a proxy for causality.
 
 ---
 
 ## 🔬 Method in a nutshell
 
-For each candidate direction, astrolabe fits a tuned random forest, computes residuals, and evaluates a **Kozachenko–Leonenko** k-NN entropy on the joint space of predictors + residual. It then (optionally) drills down by pruning low-importance predictors, and validates findings via bootstrap + permutation. The full pipeline can also add a robust **pairwise direction matrix** for 2-variable edges and merge both sources into a single DAG.
-
-Mathematical score:
+For each candidate relationship, **astrolabe** fits a tuned random forest, computes residuals, and evaluates a **Kozachenko–Leonenko** k-NN entropy on the joint space of predictors and residual. It then drills down by pruning low-importance predictors, and validates findings via bootstrap and permutation. The full pipeline can also add a **pairwise direction matrix** for 2-variable edges and merge both sources into a single DAG. Given a model $m: \ \ Y\sim X_1 + X_2+X_3+\dots+X_p$, with $p$ the number of predictors, the core metric on which the method lies is: 
 
 $$
 H(m) = e^{-S_{\text{knn}}(m)} ,
 $$
 
-where $S(m)$ is:
+where the $S_{knn}(m)$ is defined as follows:
 
 $$
 S_{\text{knn}}(m) \approx \psi(n) - \psi(k) + \log(c_d) + \frac{d}{n} \sum_{i=1}^n \log \varepsilon_i ,
