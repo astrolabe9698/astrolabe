@@ -45,7 +45,7 @@ out <- complete_function(
   n_boot = 100,
   n_perm = 50,
   ntree  = 500,
-  importance_method = "neg_exp",
+  importance_method = "fixed",   # "neg_exp" or "net_clust" also allowed
   plot = TRUE
 )
 
