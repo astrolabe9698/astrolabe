@@ -32,7 +32,7 @@ remotes::install_github("astrolabe9698/astrolabe")
 
 ## 📘 Mini tutorial — core functions
 
-### Complete pipeline: `complete_function()`
+### 1. Complete pipeline: `complete_function()`
 
 **What it does.**  
 Runs everything in sequence:
@@ -63,7 +63,28 @@ out <- complete_function(
 
 ```
 
+
+### 2. PCA tools: `pca_scan_and_augment()`
 ---
+
+In case you have many variables the `pca_scan_and_augment()` allows you to perform a PCA before running **astrolabe** to select the most important variables in the model. It then uses those variables to to causal inference on the variables that explain more.
+
+```r
+library(astrolabe)
+
+# load data
+df <- your_data
+
+pca_results<- pca_scan_and_augment(df,
+                                   ncomp = 5,
+                                   top_k = 5,
+                                   alpha = 0.05,
+                                   verbose = TRUE,
+                                   plot = TRUE,
+                                   fixed_variables = NULL) 
+```
+
+In *fixed_variable* you can choose variables that you want to put in the model regardless the PCA results.
 
 ## 🧭 Choosing `importance_method`
 
