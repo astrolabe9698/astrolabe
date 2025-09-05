@@ -51,14 +51,13 @@ library(astrolabe)
 df <- your_data
 
 # End-to-end pipeline (multi-outcome scan + robust validation + pairwise)
-out <- complete_function(
-  df,
-  which = "all",       # "robust" or "binary" also allowed
-  n_boot = 100,
-  n_perm = 50,
-  ntree  = 500,
-  importance_method = "fixed",   # "neg_exp" or "net_clust" also allowed
-  plot = TRUE
+out <- complete_function(df,
+                         which = "all",       # "robust" or "binary" also allowed
+                         n_boot = 100,
+                         n_perm = 50,
+                         ntree  = 500,
+                         importance_method = "fixed",   # "neg_exp" or "net_clust" also allowed
+                         plot = TRUE
 )
 
 ```
@@ -83,7 +82,7 @@ pca_results<- pca_scan_and_augment(df,
                                    fixed_variables = NULL) 
 ```
 
-In *fixed_variable* you can choose variables that you want to put in the model regardless the PCA results.
+In *fixed_variables* you can choose variables that you want to put in the model regardless the PCA results.
 
 ## 🧭 Choosing `importance_method`
 
