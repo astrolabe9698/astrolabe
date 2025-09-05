@@ -30,8 +30,20 @@ remotes::install_github("astrolabe9698/astrolabe")
 
 ---
 
-## 🧪 Quick start
+## 📘 Mini tutorial — core functions
 
+### Complete pipeline: `complete_function()`
+
+**What it does.**  
+Runs everything in sequence:
+
+1. Preprocessing (numeric/factor coercion, rare-level handling)  
+2. Multi-outcome scan with drill-down pruning  
+3. Robust validation (bootstrap + permutation)  
+4. Optional pairwise direction matrix  
+5. Merge into a single DAG (`pairwise`, `complex`, or `both`)  
+
+**Example.**
 ```r
 library(astrolabe)
 
@@ -49,95 +61,6 @@ out <- complete_function(
   plot = TRUE
 )
 
-```
-
----
-
-## 📘 Mini tutorial — core functions
-
-### 1) Pairwise direction matrix: `cor_forest_matrix_robust_perm()`
-
-**What it does.**  
-For every unordered pair (X, Y), it decides the preferred direction on real data, then estimates robustness with bootstrap and an **empirical permutation test**. Returns:
-
-- `real`: chosen directions on real data (binary adjacency)  
-- `freq`: bootstrap hit counts  
-- `significant`: directions surviving permutation at `alpha`  
-- `pval`: empirical p-values  
-
-**Example.**
-```r
-mats <- cor_forest_matrix_robust_perm(
-  df,
-  B = 50, P = 100,
-  ntree = 300,
-  alpha = 0.05,
-  importance_method = "neg_exp",
-  verbose = TRUE
-)
-which(mats$significant == 1, arr.ind = TRUE)
-```
-
----
-
-### 2) Robust validation: `robust_scan_all_outcomes()`
-
-**What it does.**  
-Validates the **multi-outcome scan results** with:
-
-1. **Bootstrap on real data** → how often predictor sets reappear  
-2. **Permutation test** (with embedded bootstrap) → empirical p-value  
-
-**Example.**
-```r
-scan_res <- scan_all_outcomes_complete(
-  df, ntree = 500,
-  importance_method = "neg_exp",
-  verbose = TRUE
-)
-
-robust <- robust_scan_all_outcomes(
-  df, scan_results = scan_res,
-  n_boot = 300, n_perm = 50,
-  alpha = 0.05,
-  ntree = 500,
-  importance_method = "neg_exp"
-)
-
-robust[[1]]$p_empirical
-robust[[1]]$significant
-```
-
----
-
-### 3) Complete pipeline: `complete_function()`
-
-**What it does.**  
-Runs everything in sequence:
-
-1. Preprocessing (numeric/factor coercion, rare-level handling)  
-2. Multi-outcome scan with drill-down pruning  
-3. Robust validation (bootstrap + permutation)  
-4. Optional pairwise direction matrix  
-5. Merge into a single DAG (`pairwise`, `complex`, or `both`)  
-
-**Example.**
-```r
-out <- complete_function(
-  df,
-  which = "all",
-  n_boot = 100, n_perm = 50,
-  alpha = 0.05,
-  ntree = 500,
-  importance_method = "neg_exp",
-  plot = TRUE, layout = "kk"
-)
-
-out$scan_res   # raw scan results per outcome
-out$robust     # bootstrap+permutation validation
-out$binary     # pairwise direction matrices
-out$res_all    # merged edge list
-out$graph      # ggplot DAG
 ```
 
 ---
