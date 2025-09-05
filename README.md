@@ -65,7 +65,6 @@ out <- complete_function(
 
 
 ### 2. PCA tools: `pca_scan_and_augment()`
----
 
 In case you have many variables the `pca_scan_and_augment()` allows you to perform a PCA before running **astrolabe** to select the most important variables in the model. It then uses those variables to to causal inference on the variables that explain more.
 
