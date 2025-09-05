@@ -5,7 +5,7 @@ It couples random forests with an information-theoretic objective: the (negative
 
 ---
 
-## 🔬 Method 
+## 🔬 Method in a nutshell
 
 For each candidate direction, astrolabe fits a tuned random forest, computes residuals, and evaluates a **Kozachenko–Leonenko** k-NN entropy on the joint space of predictors + residual. It then (optionally) drills down by pruning low-importance predictors, and validates findings via bootstrap + permutation. The full pipeline can also add a robust **pairwise direction matrix** for 2-variable edges and merge both sources into a single DAG.
 
