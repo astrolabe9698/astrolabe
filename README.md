@@ -1,4 +1,4 @@
-# astrolabe <img src="man/figures/logo.png" align="left" width="120" />
+# astrolabe <img src="inst/figures/logo.png" align="left" width="120" />
 
 **astrolabe** is an R package for inferring **non-linear causal relations** among variables.  
 It couples random forests with an information-theoretic objective: the entropy of residuals. Higher scores imply “cleaner” residuals on the chosen predictors — a proxy for causality.
