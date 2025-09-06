@@ -11,7 +11,7 @@
 #' @param importances List accumulating variable-importance structures per layer.
 #'   Typically starts from the first-layer importances returned by
 #'   \code{causal_entropy_combinations()}.
-#' @param layer_level Integer index of the current drill layer (e.g., 1 for first drill step).
+#' @param layer_level Integer index of the current drill layer (e.g., 1 for the first drill step).
 #' @param removable_predictors Character vector of predictors deemed removable at this step.
 #' @param ntree Integer. Number of trees for the underlying Random Forest (default \code{500}).
 #' @param verbose Logical. Print step-by-step diagnostics (default \code{FALSE}).
@@ -23,6 +23,8 @@
 #'   Strategy used by \code{evaluate_importance()} to decide removability.
 #' @param prob Numeric. Probability cutoff for the neural network inside
 #'   \code{evaluate_importance()} when \code{importance_method = "net_clust"} (default \code{0.75}).
+#' @param acc Environment used as an accumulator to propagate stop conditions
+#'   across recursive calls. Usually left as \code{NULL} by the user.
 #'
 #' @return A (possibly nested) list with elements:
 #' \itemize{
@@ -40,6 +42,8 @@
 #' on the remaining set and compares entropies, keeping the best. Importances for the
 #' winning subset are then re-evaluated via \code{evaluate_importance()} to decide the
 #' next removable set, and the procedure recurses until stopping criteria are met.
+#' If at any step all predictors are deemed removable, the drill-down halts and the
+#' root result is discarded to avoid trivial models.
 #'
 #' @examples
 #' \dontrun{
@@ -71,108 +75,120 @@ drill_down_scan <- function(df, verdict, importances, layer_level, removable_pre
                             quantitative_thr = 40,
                             categorical_thr = 35,
                             importance_method = c("fixed","neg_exp","net_clust"),
-                            prob = 0.75) {
+                            prob = 0.75,
+                            acc = NULL) {   # >>> NEW: accumulator environment
+
+  .drill_stop_all_removable <- function() {
+    structure(list(reason = "all_removable"), class = "drill_stop")
+  }
+
+  # >>> Create 'acc' if not provided
+  if (is.null(acc)) acc <- new.env(parent = emptyenv())
+  if (is.null(acc$delete_root)) acc$delete_root <- FALSE   # >>> Track root deletion flag
 
   # Select predictors excluding the fixed outcome
   predictors <- setdiff(colnames(df), fixed_outcome)
 
-  # If there are fewer than 2 predictors, stop
+  # Stop if fewer than two predictors remain
   if (length(predictors) < 2) {
     if (verbose) cat("\033[90m\n🔚 Not enough tools to dig — only one predictor left.\n\033[0m")
     return(NULL)
   }
 
-  # Initialize lists to store entropies, subsets, and importances
+  # Initialize containers for entropies, subsets, and importances
   H_list <- list()
   subsets_list <- list()
   temp_importances <- list()
 
-  # If all predictors are removable, stop the drill
-  if(base::setequal(predictors,removable_predictors)){
+  # >>> If all predictors are deemed removable at this step: stop and mark root deletion
+  if (base::setequal(predictors, removable_predictors)) {
     if (verbose) cat("   ❌ All predictors deemed removable — stopping drill-down.\n\n")
-    return(NULL)
+    acc$delete_root <- TRUE
+    return(.drill_stop_all_removable())
   }
 
-  # Iterate over each predictor to remove one at a time
+  # Iterate over predictors and remove one at a time (if marked removable)
   for (to_remove in predictors) {
     if (to_remove %in% removable_predictors) {
-      if (verbose) cat("\n🟫🟫🟫⬇️ Digging by removing '", to_remove, "'...\n", sep = "")
-      # Build reduced dataset without the removable predictor
+      if(verbose) cat("\n 🐹🟫⬇️ Digging by removing", to_remove,"...\n")
       subset_vars <- setdiff(predictors, to_remove)
       if (length(subset_vars) < 1) next
       data_red <- df[, c(subset_vars, fixed_outcome)]
       key <- paste(paste(subset_vars, collapse = " + "), "→", fixed_outcome)
       subsets_list[[key]] <- data_red
-      # Fit causal entropy model on reduced data
-      fit <- causal_entropy_combinations(data_red, ntree = ntree, fixed_outcome = fixed_outcome,always_predictors = always_predictors)
-      H_obs <- fit$entropy
-      H_list[[key]] <- H_obs
-      # Save importance of predictors for this subset
+
+      fit <- causal_entropy_combinations(
+        data_red, ntree = ntree,
+        fixed_outcome = fixed_outcome,
+        always_predictors = always_predictors
+      )
+
+      H_list[[key]] <- fit$entropy
       temp_importances[[key]] <- fit$importances[[key]]
     } else {
-      # Skip predictors that are "too precious" to remove
       if (verbose) cat("\033[90m\n⛓️  Holding '", to_remove, "' — too precious to remove now.\n\033[0m", sep = "")
     }
   }
 
-  # Save importances for the new layer
+  # Save importances for this new layer
   importances[[paste0('n', layer_level + 1, 'th_layer')]] <- temp_importances
 
-  # If no entropy values were computed, stop
+  # Stop if no valid entropy values were obtained
   if (length(H_list) == 0) {
     if (verbose) cat("\033[90m\n🕳️ No valid path found at this layer.\n\033[0m")
     return(NULL)
   }
 
-  # Combine entropies into matrix form and find the maximum
+  # Collect entropies and pick the maximum
   H_obs <- do.call(rbind, H_list)
   colnames(H_obs) <- NULL
   H_obs <- t(H_obs)
 
-  # Select the best model (highest entropy)
+  # Select best candidate (highest entropy)
   winner_name <- H_obs[which.max(H_obs)]
   names(winner_name) <- colnames(H_obs)[which.max(H_obs)]
   verdict_updated <- c(verdict, winner_name)
 
-  # Retrieve the data corresponding to the winner model
+  # Retrieve corresponding dataset
   winner_data <- subsets_list[[names(winner_name)]]
   if (verbose) {
     cat("\033[96m\n🏆 Best combination: ", names(winner_name), " | H = ", winner_name, "\033[0m\n", sep = "")
   }
 
-  # Store results of this layer
+  # >>> Snapshot of the current node
   res <- list(
-    statistic = winner_name,
-    decision = names(winner_name),
-    data = winner_data,
-    verdict = verdict_updated,
+    statistic   = winner_name,
+    decision    = names(winner_name),
+    data        = winner_data,
+    verdict     = verdict_updated,
     importances = importances,
-    last_layer = layer_level + 1
+    last_layer  = layer_level + 1
   )
 
-  # Extract importance values for predictors of the winning model
-  imp_vec <- unlist(temp_importances[[names(winner_name)]],use.names = TRUE)
+  # Extract importances of the winner predictors
+  imp_vec <- unlist(temp_importances[[names(winner_name)]], use.names = TRUE)
 
-  # Determine which predictors are removable based on importance evaluation
-  imp_removable <- evaluate_importance(df = df,
-                                       imp_vec = imp_vec,
-                                       predictors = setdiff(colnames(winner_data),fixed_outcome),
-                                       importance_method = importance_method,
-                                       quantitative_thr = quantitative_thr,
-                                       categorical_thr = categorical_thr,
-                                       verbose = verbose,
-                                       prob = prob
+  # Decide next removable predictors using evaluate_importance()
+  imp_removable <- evaluate_importance(
+    df = winner_data,
+    imp_vec = imp_vec,
+    predictors = setdiff(colnames(winner_data), fixed_outcome),
+    importance_method = importance_method,
+    quantitative_thr = quantitative_thr,
+    categorical_thr = categorical_thr,
+    verbose = verbose,
+    prob = prob
   )
 
-  removable_predictors <- names(imp_removable[imp_removable])
+  removable_predictors_next <- names(imp_removable[imp_removable])
 
-  # Recursive call to drill further into the reduced dataset
-  res$drill_down <- drill_down_scan(
-    res$data,
+  # >>> Pass 'acc' into recursion (shared container across calls)
+  child <- drill_down_scan(
+    df = res$data,
     verdict = res$verdict,
     importances = res$importances,
     layer_level = res$last_layer,
-    removable_predictors = removable_predictors,
+    removable_predictors = removable_predictors_next,
     ntree = ntree,
     verbose = verbose,
     always_predictors = always_predictors,
@@ -180,14 +196,24 @@ drill_down_scan <- function(df, verdict, importances, layer_level, removable_pre
     quantitative_thr = quantitative_thr,
     categorical_thr = categorical_thr,
     importance_method = importance_method,
-    prob = prob
+    prob = prob,
+    acc = acc
   )
+
+  # Propagate root deletion only when "all_removable"
+  if (inherits(child, "drill_stop") &&
+      identical(child$reason, "all_removable")) {
+    acc$delete_root <- TRUE
+    return(NULL)
+  }
+
+  # Attach child branch if it exists
+  if (!is.null(child)) {
+    res$drill_down <- child
+  }
+
   invisible(res)
 }
-
-
-
-
 
 #' Full Multi-Outcome Causal Scan with Drill-Down
 #'
@@ -222,14 +248,20 @@ drill_down_scan <- function(df, verdict, importances, layer_level, removable_pre
 #' Returns \code{invisible(NULL)} if no candidates are found.
 #'
 #' @details
-#' Pipeline:
+#' \strong{Pipeline.}
 #' \enumerate{
 #'   \item Fit \code{causal_entropy_combinations(df, ...)} to obtain entropies and first-layer importances;
-#'   \item Rank candidates by entropy and, for each, compute removable predictors via
-#'         \code{evaluate_importance()};
+#'   \item Rank candidates by entropy and, for each, compute removable predictors via \code{evaluate_importance()};
 #'   \item Run \code{drill_down_scan()} to explore reduced subsets until convergence;
 #'   \item Remove bidirectional duplicates by keeping the higher-entropy direction.
 #' }
+#'
+#' \strong{Pruning.} After drill-down, candidates can be discarded if any retained predictor
+#' shows too-low importance (see inline checks). Note: current implementation compares against an
+#' internal threshold in code; keep documentation consistent with that setting.
+#'
+#' \strong{Reproducibility.} If \code{seed} is provided, \code{set.seed(seed)} is used before fitting.
+#' Predictors listed in \code{always_predictors} are kept throughout the scan and drill-down.
 #'
 #' @examples
 #' \dontrun{
@@ -300,7 +332,6 @@ scan_all_outcomes_complete <- function(df,
     parts <- strsplit(name, " → ")[[1]]
     predictors <- strsplit(parts[1], " \\+ ")[[1]]
     outcome <- parts[2]
-    df_sub <- df[, c(predictors, outcome)] #take just the variables on interest (all here)
 
     # Get importance values of predictors for this model
     imp_vec <- unlist(imp_all[['n1th_layer']][[name]]) #extract the importances of each variables of the studied model
@@ -313,19 +344,7 @@ scan_all_outcomes_complete <- function(df,
                                          quantitative_thr = quantitative_thr,
                                          categorical_thr = categorical_thr,
                                          verbose = verbose,
-                                         prob = prob
-    ) #evaluete importance in order to choose the less important variables
-
-    if (verbose) {
-      cat("   • Predictors:", paste(predictors, collapse = ", "), "\n")
-      if (any(imp_removable)) {
-        cat("   • Removable predictors:",
-            paste(sprintf("%s (imp=%.3f)", names(imp_removable)[imp_removable], imp_vec[imp_removable]),
-                  collapse = ", "), "\n")
-      } else {
-        cat("   • Removable predictors: none\n")
-      }
-    }
+                                         prob = prob) #evaluate importance in order to choose the less important variables
 
     # If all predictors are removable, skip this path
     if (sum(imp_removable) == length(predictors)) {
@@ -336,17 +355,13 @@ scan_all_outcomes_complete <- function(df,
 
     drill_results <- NULL #initialize the drill
     if (length(predictors) > 1) {
-      if (verbose) {
-        if (any(imp_removable)) {
-          cat("   ▸ Branching via 'removable' for: ",
-              paste(sprintf("%s (imp=%.3f)", names(imp_removable)[imp_removable], imp_vec[imp_removable]),
-                    collapse = ", "), "\n", sep = "")
-        }
-        cat("   ▸ Starting drill-down...\n")
-      }
+      cat("   ▸ Starting drill-down...\n")
       #start the drill iteration
+      acc <- new.env(parent = emptyenv())
+      acc$delete_root <- FALSE
+
       drill_results <- drill_down_scan(
-        df_sub,
+        df,
         verdict = ranked[name],
         importances = imp_all,
         removable_predictors = names(imp_removable[imp_removable]),
@@ -358,8 +373,14 @@ scan_all_outcomes_complete <- function(df,
         quantitative_thr = quantitative_thr,
         categorical_thr = categorical_thr,
         importance_method = importance_method,
-        prob = prob
+        prob = prob,
+        acc = acc
       )
+
+      if (isTRUE(acc$delete_root)) {
+        if (verbose) cat("\n⛔️ Deleting root: all predictors marked as removable during drilling.\n\n")
+        next
+      }
     }
 
     # Dive into the deeper results (navigate recursive structure)
@@ -522,7 +543,7 @@ scan_all_outcomes_complete <- function(df,
   if (verbose) cat("\n✅ Multi-outcome scan complete!\n")
 
   # Verbose: print final relationships
-  if(!is.null(results)) {
+  if(length(results)!=0) {
     if (verbose) cat("\n FINAL CAUSAL RELATIONSHIPS:\n")
     for (i in seq_along(results)) {
       decision <- results[[i]]$drill_down_decision
@@ -540,6 +561,9 @@ scan_all_outcomes_complete <- function(df,
       }
     }
     if(verbose) cat("\n")
+  }
+  else {
+    if (verbose) cat("\n❌ Zero relationships found. \n")
   }
   invisible(results)
 }

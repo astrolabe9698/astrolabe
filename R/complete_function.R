@@ -311,7 +311,7 @@ complete_function <- function(df,
 
   # --- Plot causal graph if requested ---
   g <- NULL
-  if (plot) {
+  if (plot & nrow(res_all) != 0) {
     if (is.null(robust_scan) && is.null(binary_res)) {
       if (verbose) cat("\nℹ️  Nothing to plot (no results produced in this mode).\n")
     } else {
