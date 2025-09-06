@@ -17,7 +17,8 @@ drill_down_scan(
   quantitative_thr = 40,
   categorical_thr = 35,
   importance_method = c("fixed", "neg_exp", "net_clust"),
-  prob = 0.75
+  prob = 0.75,
+  acc = NULL
 )
 }
 \arguments{
@@ -30,7 +31,7 @@ drill_down_scan(
 Typically starts from the first-layer importances returned by
 \code{causal_entropy_combinations()}.}
 
-\item{layer_level}{Integer index of the current drill layer (e.g., 1 for first drill step).}
+\item{layer_level}{Integer index of the current drill layer (e.g., 1 for the first drill step).}
 
 \item{removable_predictors}{Character vector of predictors deemed removable at this step.}
 
@@ -51,6 +52,9 @@ Strategy used by \code{evaluate_importance()} to decide removability.}
 
 \item{prob}{Numeric. Probability cutoff for the neural network inside
 \code{evaluate_importance()} when \code{importance_method = "net_clust"} (default \code{0.75}).}
+
+\item{acc}{Environment used as an accumulator to propagate stop conditions
+across recursive calls. Usually left as \code{NULL} by the user.}
 }
 \value{
 A (possibly nested) list with elements:
@@ -75,6 +79,8 @@ For each removable predictor, the function fits \code{causal_entropy_combination
 on the remaining set and compares entropies, keeping the best. Importances for the
 winning subset are then re-evaluated via \code{evaluate_importance()} to decide the
 next removable set, and the procedure recurses until stopping criteria are met.
+If at any step all predictors are deemed removable, the drill-down halts and the
+root result is discarded to avoid trivial models.
 }
 \examples{
 \dontrun{

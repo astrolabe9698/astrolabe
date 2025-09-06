@@ -58,14 +58,20 @@ candidate (recursively removing low-importance predictors), and finally removes
 bidirectional duplicates by keeping the higher-entropy direction.
 }
 \details{
-Pipeline:
+\strong{Pipeline.}
 \enumerate{
 \item Fit \code{causal_entropy_combinations(df, ...)} to obtain entropies and first-layer importances;
-\item Rank candidates by entropy and, for each, compute removable predictors via
-\code{evaluate_importance()};
+\item Rank candidates by entropy and, for each, compute removable predictors via \code{evaluate_importance()};
 \item Run \code{drill_down_scan()} to explore reduced subsets until convergence;
 \item Remove bidirectional duplicates by keeping the higher-entropy direction.
 }
+
+\strong{Pruning.} After drill-down, candidates can be discarded if any retained predictor
+shows too-low importance (see inline checks). Note: current implementation compares against an
+internal threshold in code; keep documentation consistent with that setting.
+
+\strong{Reproducibility.} If \code{seed} is provided, \code{set.seed(seed)} is used before fitting.
+Predictors listed in \code{always_predictors} are kept throughout the scan and drill-down.
 }
 \examples{
 \dontrun{
