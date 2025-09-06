@@ -67,7 +67,8 @@
 #' @seealso \code{\link{scan_all_outcomes_complete}}, \code{\link{evaluate_importance}},
 #'   \code{\link{causal_entropy_combinations}}
 #' @export
-drill_down_scan <- function(df, verdict, importances, layer_level, removable_predictors,
+drill_down_scan <- function(df, verdict, importances = list(),
+                            layer_level, removable_predictors,
                             ntree = 500,
                             verbose = FALSE,
                             fixed_outcome,
@@ -76,11 +77,12 @@ drill_down_scan <- function(df, verdict, importances, layer_level, removable_pre
                             categorical_thr = 35,
                             importance_method = c("fixed","neg_exp","net_clust"),
                             prob = 0.75,
-                            acc = NULL) {   # >>> NEW: accumulator environment
+                            acc = NULL) {
 
   .drill_stop_all_removable <- function() {
     structure(list(reason = "all_removable"), class = "drill_stop")
   }
+
 
   # >>> Create 'acc' if not provided
   if (is.null(acc)) acc <- new.env(parent = emptyenv())
@@ -292,7 +294,6 @@ scan_all_outcomes_complete <- function(df,
   # Select importance method
   importance_method <- match.arg(importance_method,
                                  c("fixed","neg_exp","net_clust"))
-  flag <- FALSE
 
   # Set seed if provided
   if(!is.null(seed)) set.seed(seed)
@@ -335,7 +336,7 @@ scan_all_outcomes_complete <- function(df,
 
     # Get importance values of predictors for this model
     imp_vec <- unlist(imp_all[['n1th_layer']][[name]]) #extract the importances of each variables of the studied model
-    names(imp_vec) <- predictors #force the name of the predictors
+    #names(imp_vec) <- predictors #force the name of the predictors
 
     # Determine removable predictors
     imp_removable <- evaluate_importance(df = df, imp_vec = imp_vec,
@@ -360,10 +361,14 @@ scan_all_outcomes_complete <- function(df,
       acc <- new.env(parent = emptyenv())
       acc$delete_root <- FALSE
 
+      listy <- list()
+      listy[['n1th_layer']] <- list(imp_all$n1th_layer[[name]])
+      names(listy[['n1th_layer']]) <- name
+
       drill_results <- drill_down_scan(
         df,
         verdict = ranked[name],
-        importances = imp_all,
+        importances = listy,
         removable_predictors = names(imp_removable[imp_removable]),
         layer_level = 1,
         ntree = ntree,
@@ -378,7 +383,7 @@ scan_all_outcomes_complete <- function(df,
       )
 
       if (isTRUE(acc$delete_root)) {
-        if (verbose) cat("\n⛔️ Deleting root: all predictors marked as removable during drilling.\n\n")
+        if (verbose) cat("   ⛔️ Deleting root: all predictors marked as removable during drilling.\n\n")
         next
       }
     }
@@ -393,35 +398,17 @@ scan_all_outcomes_complete <- function(df,
 
     larger <- list()
     verdict <- if (!is.null(diving_into)) diving_into$verdict else ranked[name]
-    if (!is.null(diving_into)) {
+    if(!is.null(diving_into)){
       if (verbose) cat(sprintf("   ▸ Drill-down completed. Depth reached: %d\n", depth))
-      # Loop over importances per layer and prune if values are too low
-      for (layer in names(diving_into$importances)) {
-        q=1
-        for (k in names(verdict)) {
-          larger[[paste(layer, q)]] <- diving_into$importances[[layer]][[k]]
-          removed_candidate_name <- k
-          imp_vec_layer <- unlist(larger[[paste(layer, q)]])
-          under5_idx <- which(imp_vec_layer < 5)
-          if (length(under5_idx) > 0 && length(verdict) > 0) {
-            if (length(verdict) > 0) {
-              current_best_name <- names(verdict[find_maximum(verdict)])
-            } else {
-              current_best_name <- NA
-              break
-            }
-            verdict <- verdict[names(verdict) != k]
-
-            # Verbose output if best candidate removed
-            if (verbose && !is.na(current_best_name) && removed_candidate_name == current_best_name) {
-              off_vars <- names(imp_vec_layer)[under5_idx]
-              min_imp <- min(imp_vec_layer, na.rm = TRUE)
-              cat(sprintf("   🧹 Discarded TOP candidate (post-drill, prune < 5) '%s' at layer '%s': %s (min=%.3f)\n",
-                          removed_candidate_name, layer, paste(off_vars, collapse = ", "), min_imp))
-              flag <- TRUE
-            }
-          }
-          q <- q+1
+      for(layer in names(diving_into$importances)){
+        imp_check <- unlist(diving_into$importances[[layer]][names(diving_into$importances[[layer]]) %in% names(verdict)][[1]])
+        rel <- paste0(paste(names(imp_check),collapse = ' + '),' → ',outcome)
+        imp_under_5 <- (imp_check < 5)
+        if(sum(imp_under_5) != 0){
+          verdict <- verdict[names(verdict) != rel]
+          min_imp <- min(imp_check)
+          if(verbose) {cat(sprintf("   🧹 Discarded candidate (post-drill, prune < 5) '%s' at '%s' (min = %.3f)\n",
+                                   rel,layer,min_imp))}
         }
       }
     } else {
@@ -429,10 +416,9 @@ scan_all_outcomes_complete <- function(df,
       if (verbose) cat("   ▸ No drill-down structure; checking first-layer importances (prune < 5).\n")
       if (any(imp_vec < 5)) {
         if (verbose) {
-          off_vars <- names(which(imp_vec < 5))
           min_imp <- min(imp_vec, na.rm = TRUE)
-          cat(sprintf("   🧹 Excluded root candidate (first-layer prune < 5): %s (min=%.3f)\n",
-                      paste(off_vars, collapse = ", "), min_imp))
+          cat(sprintf("   🧹 Excluded root candidate (first-layer prune < 5): %s (min = %.3f)\n",
+                      name, min_imp))
           cat("────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n\n")
         }
         next
@@ -445,7 +431,7 @@ scan_all_outcomes_complete <- function(df,
     final_H <- if (length(verdict[final_name])!=0) verdict[final_name] else NULL
 
     if (verbose) {
-      if(!flag) cat(sprintf("🏁 Final decision: %s\n",ifelse(length(final_name) > 0, final_name, "❌ None")))
+      cat(sprintf("🏁 Final decision: %s\n",ifelse(length(final_name) > 0, final_name, "❌ None")))
       cat(sprintf("   • Final entropy (H): %.4f\n",
                   ifelse(!is.na(final_H), final_H, NA)))
       cat(sprintf("   • Depth reached: %d layer(s)\n", depth))

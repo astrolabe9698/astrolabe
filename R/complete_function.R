@@ -131,7 +131,7 @@ complete_function <- function(df,
   # Force binary mode if only 2 variables
   if(ncol(df) == 2){
     which <- "binary"
-    cat("\nOnly 2 variables present in the data set. It will run only the binary analysis.\n")
+  if(verbose) cat("\nOnly 2 variables present in the data set. It will run only the binary analysis.\n")
   }
 
   # Set seed if provided
@@ -291,23 +291,26 @@ complete_function <- function(df,
   }
 
   res_pair <- which(binary_res$significant == 1, arr.ind = TRUE)
-  res_pair <- data.frame(
-    from = rownames(binary_res$significant)[res_pair[,1]],
-    to   = colnames(binary_res$significant)[res_pair[,2]],
-    custom_color = 'pairwise'
-  )
+  if(!nrow(res_pair) == 0){
+    res_pair <- data.frame(
+      from = rownames(binary_res$significant)[res_pair[,1]],
+      to   = colnames(binary_res$significant)[res_pair[,2]],
+      custom_color = 'pairwise')
+  }
 
   res_all <- rbind(res_pair, res_rob)
 
-  res_all$combo <- paste(res_all$from, res_all$to)
+  if(nrow(res_all) != 0){
+    res_all$combo <- paste(res_all$from, res_all$to)
 
-  tab <- table(res_all$combo)
+    tab <- table(res_all$combo)
 
-  res_all$custom_color <- ifelse(
-    tab[res_all$combo] > 1, "both", res_all$custom_color
-  )
+    res_all$custom_color <- ifelse(
+      tab[res_all$combo] > 1, "both", res_all$custom_color
+    )
 
-  res_all <- res_all[!duplicated(res_all$combo), c("from","to","custom_color")]
+    res_all <- res_all[!duplicated(res_all$combo), c("from","to","custom_color")]
+  }
 
   # --- Plot causal graph if requested ---
   g <- NULL
