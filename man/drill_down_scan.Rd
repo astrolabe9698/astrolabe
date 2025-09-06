@@ -7,7 +7,7 @@
 drill_down_scan(
   df,
   verdict,
-  importances,
+  importances = list(),
   layer_level,
   removable_predictors,
   ntree = 500,
