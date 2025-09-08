@@ -378,8 +378,8 @@ cor_forest_matrix_robust_perm <- function(df,
     if (verbose) cat(sprintf("   ✅ Bootstrap frequency: %d/%d\n", count_from_to, B))
 
     # Skip permutation test if frequency too low
-    if (count_from_to < 3) {
-      if (verbose) cat("   ⚠️  Frequency too low (<3); skipping permutation test for this pair.\n")
+    if (count_from_to < 0.5*B) {
+      if (verbose) cat("   ⚠️  Frequency too low (<50%); skipping permutation test for this pair.\n")
       return(list(real = c(from, to),
                   freq = c(from, to, count_from_to),
                   sig = NULL))

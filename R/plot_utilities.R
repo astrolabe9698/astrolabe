@@ -63,8 +63,8 @@
 draw_dag <- function(
     edges,
     curved = NULL,
-    layout = "auto",
-    pad = 0.4,
+    layout = "sugiyama",
+    pad = 0.7,
     arrow_len_pt = 8,
     end_cap_mm   = 8,
     linewidth    = 0.75,
@@ -76,7 +76,12 @@ draw_dag <- function(
 
   # Mark which edges should be curved
   key <- paste(edges$from, edges$to, sep = "->")
+  # ── Default: curve edges if multiple outgoing from same node ─────────────
   curved_flag <- rep(FALSE, nrow(edges))
+  dup_from <- names(which(table(edges$from) > 1))
+  if (length(dup_from) > 0) {
+    curved_flag[edges$from %in% dup_from] <- TRUE
+  }
   if (!is.null(curved)) {
     if (is.logical(curved) && length(curved) == nrow(edges)) {
       curved_flag <- curved
@@ -93,7 +98,7 @@ draw_dag <- function(
   strength_val <- ifelse(edges$curved, strength_curved, 0)
 
   # Build the graph with the edge attribute included
-  g <- graph_from_data_frame(edges, directed = TRUE)
+  g <- igraph::graph_from_data_frame(edges, directed = TRUE)
 
   # Tight auto limits based on the chosen layout
   auto_limits <- function(g, layout = "kk", pad = 0.4) {
@@ -133,3 +138,4 @@ draw_dag <- function(
       legend.text  = element_text(size = 12)
     )
 }
+
