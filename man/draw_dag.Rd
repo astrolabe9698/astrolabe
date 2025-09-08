@@ -7,8 +7,8 @@
 draw_dag(
   edges,
   curved = NULL,
-  layout = "auto",
-  pad = 0.4,
+  layout = "sugiyama",
+  pad = 0.7,
   arrow_len_pt = 8,
   end_cap_mm = 8,
   linewidth = 0.75,
