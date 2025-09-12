@@ -98,7 +98,7 @@ In *fixed_variables* you can choose variables that you want to put in the model 
 
 - Always `set.seed()` for reproducibility  
 - Use `n_cores` to parallelize (defaults to `detectCores()-1`)  
-- Plot layouts: `"kk"`, `"fr"`, `"sugiyama"`  
+- Plot layouts: `"kk"`, `"tree"`, `"sugiyama"`  
 - Mixed data types are handled automatically (numeric/factors)
 - Use `always_predictios` to set as predictor a variable that can never be an outcome (for example time in a longitudinal dataset)
 
