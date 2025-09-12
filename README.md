@@ -102,6 +102,12 @@ In *fixed_variables* you can choose variables that you want to put in the model 
 - Mixed data types are handled automatically (numeric/factors)
 - Use `always_predictios` to set as predictor a variable that can never be an outcome (for example time in a longitudinal dataset)
 
+## 🏅 Extracting results
+
+```r
+out$res_all
+```
+
 ---
 
 ## 📚 Citation & License
