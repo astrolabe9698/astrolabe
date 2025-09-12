@@ -1,117 +1,128 @@
-#' Remove highly correlated numeric predictors
+#' Remove highly correlated variables with VIF, tracking replacements of always_predictors
 #'
-#' Identifica gruppi di variabili numeriche con correlazione assoluta superiore
-#' a una soglia e ne rimuove tutte tranne una per gruppo.
-#' Eventuali variabili specificate in `always_predictors` vengono sempre mantenute
-#' all’interno dei gruppi correlati.
+#' This function iteratively removes variables based on their Variance Inflation Factor (VIF),
+#' while attempting to keep specified predictors (`always_predictors`).
+#' If an `always_predictor` is removed because it is correlated with another variable,
+#' the variable that replaces it is recorded in `removed_always_predictors`.
 #'
-#' @param df data.frame
-#'   Dataset di input che può contenere variabili di qualsiasi tipo.
-#' @param always_predictors character
-#'   Vettore di nomi di variabili che devono essere sempre mantenute anche
-#'   se altamente correlate con altre (default: valore di `always_predictors`
-#'   nell'ambiente corrente).
-#' @param threshold numeric
-#'   Soglia di correlazione assoluta per considerare due variabili “altamente correlate”.
-#'   Default: 0.9.
-#' @param verbose logical
-#'   Se TRUE, stampa a console i gruppi di variabili correlate e quali vengono
-#'   mantenute o rimosse. Default: FALSE.
+#' @param df A dataframe containing numeric predictor variables.
+#' @param always_predictors Character vector of variables that should ideally never be removed.
+#' @param threshold VIF threshold above which variables are removed. Default is 5.
+#' @param ridge Small value added to the diagonal of the correlation matrix to stabilize inversion. Default is 1e-8.
+#' @param verbose Logical. If TRUE, prints removed variables, representatives, and groups at each iteration. Default is FALSE.
 #'
-#' @return
-#' Un `data.frame` uguale a `df` ma con le variabili numeriche altamente
-#' correlate (oltre la soglia) rimosse, mantenendo per ogni gruppo una sola
-#' variabile (o la variabile specificata in `always_predictors`, se presente).
-#'
-#' @examples
-#' set.seed(123)
-#' df <- data.frame(
-#'   x1 = rnorm(100),
-#'   x2 = rnorm(100),
-#'   x3 = rnorm(100)
-#' )
-#' df$x2 <- df$x1 + rnorm(100, sd = 0.01)  # x1 e x2 fortemente correlati
-#' remove_correlated(df, always_predictors = "x1", threshold = 0.9, verbose = TRUE)
+#' @return A list with three elements:
+#' \describe{
+#'   \item{df}{The reduced dataframe containing only the selected variables.}
+#'   \item{corr_variables}{A list mapping each retained variable to the variables removed in its favor.}
+#'   \item{removed_always_predictors}{A character vector of variables that replaced removed always_predictors.}
+#' }
 #'
 #' @export
-remove_correlated <- function(df, always_predictors = always_predictors, threshold = 0.9, verbose = FALSE) {
-  # 1. Select only numeric columns
+remove_correlated <- function(df, always_predictors = character(0), threshold = 5, ridge = 1e-8, verbose = FALSE) {
+  # Keep only numeric columns
   num_vars <- names(df)[sapply(df, is.numeric)]
   df_num <- df[, num_vars, drop = FALSE]
 
-  # 2. Compute correlation matrix
-  mat_cor <- cor(df_num, use = "pairwise.complete.obs")
-  cor_abs <- abs(mat_cor)
-  diag(cor_abs) <- 0
+  vars <- colnames(df_num)
 
-  # 3. Find correlated pairs
-  pairs_high <- which(cor_abs > threshold, arr.ind = TRUE)
-  if (length(pairs_high) == 0) {
-    if(verbose) cat("No correlated variables found.\n")
-    return(list(df = df,corr_variables = NULL))
-  }
+  # Map: representative -> variables removed in its favor
+  elim_map <- setNames(vector("list", length(vars)), vars)
+  for (v in vars) elim_map[[v]] <- character(0)
 
-  pairs_df <- data.frame(
-    var1 = rownames(cor_abs)[pairs_high[, 1]],
-    var2 = colnames(cor_abs)[pairs_high[, 2]],
-    correlation = cor_abs[pairs_high]
-  )
-  pairs_df <- pairs_df[pairs_high[, 1] < pairs_high[, 2], ]
+  removed_always_predictors <- character(0)
 
-  # 4. Build correlation groups without igraph
-  groups <- list()
-  for (i in seq_len(nrow(pairs_df))) {
-    v1 <- pairs_df$var1[i]
-    v2 <- pairs_df$var2[i]
+  removed_vars <- character(0)
 
-    found <- FALSE
-    for (j in seq_along(groups)) {
-      if (v1 %in% groups[[j]] || v2 %in% groups[[j]]) {
-        groups[[j]] <- unique(c(groups[[j]], v1, v2))
-        found <- TRUE
-        break
+  repeat {
+    # Compute correlation matrix
+    R <- suppressWarnings(cor(df_num[, vars, drop = FALSE], use = "pairwise.complete.obs"))
+    R[is.na(R)] <- 0
+    diag(R) <- 1
+
+    # Compute VIF
+    inv_ok <- tryCatch(solve(R + diag(ridge, nrow(R))), error = function(e) NULL)
+    if (is.null(inv_ok)) {
+      inv_ok <- solve(R + diag(max(ridge * 100, 1e-6), nrow(R)))
+    }
+    VIF <- diag(inv_ok)
+    names(VIF) <- vars
+
+    vmax <- max(VIF, na.rm = TRUE)
+    if (vmax <= threshold) break
+
+    worst <- names(which.max(VIF))
+
+    # Candidates to keep
+    candidates <- setdiff(vars, worst)
+
+    # Prefer always_predictors as representative
+    if (length(intersect(candidates, always_predictors)) > 0) {
+      rep_var <- intersect(candidates, always_predictors)[1]
+    } else {
+      cw <- abs(R[worst, candidates])
+      rep_var <- names(which.max(cw))
+      if (length(rep_var) == 0 || !is.finite(cw[rep_var])) {
+        rep_var <- names(sort(VIF[candidates], decreasing = FALSE))[1]
       }
     }
-    if (!found) {
-      groups[[length(groups) + 1]] <- c(v1, v2)
-    }
-  }
 
-  # Ensure that singletons (not in any pair) are not counted
-  all_in_groups <- unique(unlist(groups))
-
-  to_remove <- c()
-  kept <- c()
-  corr_variables <- list()
-  # 5. Decide which variable to keep in each group
-  for (grp in groups) {
-    keep <- intersect(grp, always_predictors)
-    if (length(keep) == 0) {
-      keep <- grp[1]  # keep the first if no always_predictors
-    } else {
-      keep <- keep[1] # if multiple always_predictors, just pick one
-    }
-    remove <- setdiff(grp, keep)
-
-    kept <- c(kept, keep)
-    to_remove <- c(to_remove, remove)
-
-    corr_variables[[keep]] <- remove
-
+    # Verbose info: show group
+    group <- c(worst, rep_var)
     if (verbose) {
-      cat("\nGroup: {", paste(grp, collapse = ", "), "}\n")
-      cat("→ Keeping:", keep, "\n")
-      cat("→ Removing:", paste(remove, collapse = ", "), "\n")
+      cat("\n--- VIF Group ---\n")
+      cat("Group candidates:", paste(group, collapse = ", "), "\n")
+      cat("Keeping:", rep_var, "\n")
+      cat("Removing:", worst, "\n")
+    }
+
+    # Track if worst is always_predictor and replaced by non-AP
+    if (worst %in% always_predictors && !(rep_var %in% always_predictors)) {
+      removed_always_predictors <- c(removed_always_predictors, rep_var)
+      if (verbose) cat("Note: replaced always_predictor", worst, "with", rep_var, "\n")
+    }
+
+    # Transfer the eliminated chain
+    elim_map[[rep_var]] <- c(elim_map[[rep_var]], worst, elim_map[[worst]])
+    elim_map[[worst]] <- NULL
+
+    removed_vars <- c(removed_vars, worst)
+
+    vars <- setdiff(vars, worst)
+    if (length(vars) <= 1) break
+  }
+
+  # Ensure all retained variables appear as names
+  for (v in vars) if (is.null(elim_map[[v]])) elim_map[[v]] <- character(0)
+
+  # Reduced dataframe
+  kept <- intersect(colnames(df), names(elim_map))
+  df_reduced <- df[, kept, drop = FALSE]
+
+  # Build list of removed variables per kept variable
+  corr_variables <- list()
+  for (name in names(elim_map)) {
+    if (length(elim_map[[name]]) != 0) corr_variables[[name]] <- elim_map[[name]]
+  }
+
+  # Final summary message
+  if (verbose) {
+    cat("\n=== FINAL SUMMARY ===\n")
+    cat("Kept variables:", paste(kept, collapse = ", "), "\n")
+    cat("Removed variables:", paste(removed_vars, collapse = ", "), "\n")
+    if (length(removed_always_predictors) > 0) {
+      cat("Variables that replaced always_predictors:", paste(unique(removed_always_predictors), collapse = ", "), "\n")
+    } else {
+      cat("No always_predictors were replaced.\n")
     }
   }
 
-  # 6. Remove from df
-  df_without_corr <- df[, !(names(df) %in% to_remove)]
-
-  return(list(df = df_without_corr,corr_variables = corr_variables))
+  list(
+    df = df_reduced,
+    corr_variables = corr_variables,
+    removed_always_predictors = unique(removed_always_predictors)
+  )
 }
-
-
 
 #' ReLU (Rectified Linear Unit) activation
 #'

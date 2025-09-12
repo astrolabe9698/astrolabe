@@ -220,9 +220,15 @@ complete_function <- function(df,
 
   if (verbose) cat("\nRemove linearly dependent variables if present...\n")
 
-  m_corr <- remove_correlated(df, always_predictors = always_predictors, threshold = 0.9, verbose = verbose)
+  m_corr <- remove_correlated(df, always_predictors = always_predictors, threshold = 10, verbose = verbose)
   df <- m_corr$df
   corr_variables <- m_corr$corr_variables
+  always_predictors <- always_predictors[always_predictors %in% colnames(df)]
+
+  # After obtaining new always_predictors from removed correlations
+  new_ap <- m_corr$always_predictors
+  new_ap <- new_ap[!(new_ap %in% always_predictors)]  # only add if not already present
+  always_predictors <- c(always_predictors, new_ap)
 
   if(ncol(as.data.frame(df)) < 2){
     if(verbose) cat('\n No enough survived variables \n')

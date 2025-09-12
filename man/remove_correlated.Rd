@@ -2,51 +2,38 @@
 % Please edit documentation in R/utilities.R
 \name{remove_correlated}
 \alias{remove_correlated}
-\title{Remove highly correlated numeric predictors}
+\title{Remove highly correlated variables with VIF, tracking replacements of always_predictors}
 \usage{
 remove_correlated(
   df,
-  always_predictors = always_predictors,
-  threshold = 0.9,
+  always_predictors = character(0),
+  threshold = 5,
+  ridge = 1e-08,
   verbose = FALSE
 )
 }
 \arguments{
-\item{df}{data.frame
-Dataset di input che può contenere variabili di qualsiasi tipo.}
+\item{df}{A dataframe containing numeric predictor variables.}
 
-\item{always_predictors}{character
-Vettore di nomi di variabili che devono essere sempre mantenute anche
-se altamente correlate con altre (default: valore di \code{always_predictors}
-nell'ambiente corrente).}
+\item{always_predictors}{Character vector of variables that should ideally never be removed.}
 
-\item{threshold}{numeric
-Soglia di correlazione assoluta per considerare due variabili “altamente correlate”.
-Default: 0.9.}
+\item{threshold}{VIF threshold above which variables are removed. Default is 5.}
 
-\item{verbose}{logical
-Se TRUE, stampa a console i gruppi di variabili correlate e quali vengono
-mantenute o rimosse. Default: FALSE.}
+\item{ridge}{Small value added to the diagonal of the correlation matrix to stabilize inversion. Default is 1e-8.}
+
+\item{verbose}{Logical. If TRUE, prints removed variables, representatives, and groups at each iteration. Default is FALSE.}
 }
 \value{
-Un \code{data.frame} uguale a \code{df} ma con le variabili numeriche altamente
-correlate (oltre la soglia) rimosse, mantenendo per ogni gruppo una sola
-variabile (o la variabile specificata in \code{always_predictors}, se presente).
+A list with three elements:
+\describe{
+\item{df}{The reduced dataframe containing only the selected variables.}
+\item{corr_variables}{A list mapping each retained variable to the variables removed in its favor.}
+\item{removed_always_predictors}{A character vector of variables that replaced removed always_predictors.}
+}
 }
 \description{
-Identifica gruppi di variabili numeriche con correlazione assoluta superiore
-a una soglia e ne rimuove tutte tranne una per gruppo.
-Eventuali variabili specificate in \code{always_predictors} vengono sempre mantenute
-all’interno dei gruppi correlati.
-}
-\examples{
-set.seed(123)
-df <- data.frame(
-  x1 = rnorm(100),
-  x2 = rnorm(100),
-  x3 = rnorm(100)
-)
-df$x2 <- df$x1 + rnorm(100, sd = 0.01)  # x1 e x2 fortemente correlati
-remove_correlated(df, always_predictors = "x1", threshold = 0.9, verbose = TRUE)
-
+This function iteratively removes variables based on their Variance Inflation Factor (VIF),
+while attempting to keep specified predictors (\code{always_predictors}).
+If an \code{always_predictor} is removed because it is correlated with another variable,
+the variable that replaces it is recorded in \code{removed_always_predictors}.
 }
