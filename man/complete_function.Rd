@@ -22,7 +22,7 @@ complete_function(
   plot = TRUE,
   curved = NULL,
   layout = "auto",
-  pad = 0.4,
+  pad = 0.6,
   arrow_len_pt = 8,
   end_cap_mm = 8,
   linewidth = 0.75,

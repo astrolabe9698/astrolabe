@@ -11,7 +11,8 @@ causal_entropy_combinations(
   verbose = FALSE,
   fixed_outcome = NULL,
   always_predictors = NULL,
-  as_factor = NULL
+  as_factor = NULL,
+  drill = FALSE
 )
 }
 \arguments{
@@ -33,6 +34,8 @@ always be available; excluded from the outcome set when scanning.}
 
 \item{as_factor}{Optional character vector of column names to coerce to factor
 before fitting (also appended to \code{always_predictors}).}
+
+\item{drill}{Logical. If TRUE, stops the scan after the first combination (useful for drill-down).}
 }
 \value{
 An invisible list with:
