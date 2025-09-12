@@ -117,7 +117,7 @@ complete_function <- function(df,
                                plot = TRUE,
                                curved = NULL,
                                layout = "auto",
-                               pad = 0.4,
+                               pad = 0.6,
                                arrow_len_pt = 8,
                                end_cap_mm   = 8,
                                linewidth    = 0.75,
@@ -142,7 +142,7 @@ complete_function <- function(df,
     init_row <- nrow(df)
     df <- na.omit(df)
     final_row <- nrow(df)
-    cat('\nRemoving', init_row - final_row, 'NAs...\n')
+    if(verbose) cat('\nRemoving', init_row - final_row, 'NAs...\n')
   }
 
   n <- nrow(df)
@@ -158,23 +158,23 @@ complete_function <- function(df,
     if (!is.numeric(x)) {
       # Factor handling
       if (k <= min(20, ceiling(0.05 * n)) && all(table(x) >= min_per_level)) {
-        cat('\nColumn', toupper(col), '→ FACTOR (k =',paste0(k, ')'),'\n')
+        if(verbose) cat('\nColumn', toupper(col), '→ FACTOR (k =',paste0(k, ')'),'\n')
         df[[col]] <- as.factor(x)
         always_predictors <- c(always_predictors, col)
       } else {
         # Try coercion to numeric
         if (can_coerce_numeric(x)) {
-          cat('\nColumn', toupper(col), 'high-cardinality NUMERIC-LOOKING → NUMERIC\n')
+          if(verbose) cat('\nColumn', toupper(col), 'high-cardinality NUMERIC-LOOKING → NUMERIC\n')
           suppressWarnings(df[[col]] <- as.numeric(as.character(x)))
           if(any(is.na(df[[col]]))){
             init_row <- nrow(df)
             df <- na.omit(df)
             final_row <- nrow(df)
-            cat('\n   → Removed', init_row - final_row,' rows since they cannot be coerced as numeric\n')
+            if(verbose) cat('\n   → Removed', init_row - final_row,' rows since they cannot be coerced as numeric\n')
           }
         } else {
           # Factor with rare levels grouped
-          cat('\nColumn', toupper(col), 'high-cardinality NON-NUMERIC → FACTOR with rare levels grouped\n')
+          if(verbose) cat('\nColumn', toupper(col), 'high-cardinality NON-NUMERIC → FACTOR with rare levels grouped\n')
           x <- as.character(x)
           freq <- table(x)
           rare_levels <- names(freq)[freq < rare_thresh]
@@ -185,11 +185,11 @@ complete_function <- function(df,
           if (max(freq_after) / n > dominance_thresh) {
             top_level <- names(which.max(freq_after))
             if (length(freq_after) == 2) {
-              cat('  → Binarizing:', top_level, 'vs others\n')
+              if(verbose) cat('  → Binarizing:', top_level, 'vs others\n')
               x <- factor(x == top_level, levels = c(FALSE, TRUE))
               always_predictors <- c(always_predictors, col)
             } else {
-              cat('  → Dropping column due to dominance of', top_level, '\n')
+              if(verbose) cat('  → Dropping column due to dominance of', top_level, '\n')
               df[[col]] <- NULL
               next
             }
@@ -200,15 +200,42 @@ complete_function <- function(df,
       }
     } else {
       # Numeric columns with few unique values converted to factor
-      if (k <= 8 || k <= 0.02 * n) {
-        cat('\nColumn', toupper(col), 'numeric with few uniques (k =', paste0(k, ')'), '→ FACTOR\n')
+      if (k <= 8) {
+        if (verbose) cat('\nColumn', toupper(col), 'numeric with few uniques (k =', paste0(k, ')'), '→ FACTOR\n')
         df[[col]] <- as.factor(x)
         always_predictors <- c(always_predictors, col)
       } else {
-        if (verbose) cat('\nColumn', toupper(col), '→ NUMERIC (k =', paste0(k, ')'),'\n')
+        if(verbose) cat('\nColumn', toupper(col), '→ NUMERIC (k =', paste0(k, ')'),'\n')
       }
     }
   }
+
+
+  num_vars <- names(df)[sapply(df, is.numeric)]
+  df_num <- df[, num_vars, drop = FALSE]
+  if(length(df_num)==0){
+    cat("\nAll variables are factorial, no outcomes present.\n")
+    return(NULL)
+  }
+
+  if (verbose) cat("\nRemove linearly dependent variables if present...\n")
+
+  df<-remove_correlated(df, always_predictors = "Extracellular Water (ECW)", threshold = 0.9, verbose = verbose)
+
+
+  if(ncol(as.data.frame(df)) < 2){
+    if(verbose) cat('\n No enough survived variables \n')
+    return(NULL)
+  }
+
+  # Scale numeric variables
+  df_scaled <-df
+  numeric_cols <- sapply(df_scaled, is.numeric)
+  df_scaled[numeric_cols] <- lapply(df[numeric_cols], function(x) {
+    scaled_x <- (x - mean(x))/sd(x)
+    as.numeric(scaled_x)
+  })
+  df<-df_scaled
 
   # Initialize results
   scan_results <- NULL
@@ -299,7 +326,6 @@ complete_function <- function(df,
   }
 
   res_all <- rbind(res_pair, res_rob)
-
   if(nrow(res_all) != 0){
     res_all$combo <- paste(res_all$from, res_all$to)
 

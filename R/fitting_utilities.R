@@ -108,6 +108,7 @@ tune_rf <- function(x, y, mtry_grid = 1:floor(sqrt(ncol(x))), ntree = 500) {
 #'   always be available; excluded from the outcome set when scanning.
 #' @param as_factor Optional character vector of column names to coerce to factor
 #'   before fitting (also appended to \code{always_predictors}).
+#' @param drill Logical. If TRUE, stops the scan after the first combination (useful for drill-down).
 #'
 #' @return An invisible list with:
 #' \itemize{
@@ -140,7 +141,8 @@ causal_entropy_combinations <- function(df,
                                         verbose = FALSE,
                                         fixed_outcome = NULL,
                                         always_predictors = NULL,
-                                        as_factor = NULL) {
+                                        as_factor = NULL,
+                                        drill = FALSE) {
   if (!is.null(as_factor)){
     df[,as_factor] <- as.factor(df[,as_factor])
     always_predictors <- c(always_predictors,as_factor)
@@ -157,21 +159,27 @@ causal_entropy_combinations <- function(df,
     fixed_outcome
   }
 
+  if_res <- TRUE
+  to_remove <-list()
   for (outcome_col in outcomes) {
+    to_remove <- list()
     predictor_cols <- setdiff(colnames(df), outcome_col)
+    while (TRUE){
+        predictor_cols <- setdiff(predictor_cols, unlist(to_remove))
     if (length(predictor_cols) < 1) {
-      next
+      if_res <- FALSE
+      break;
     }
     df_predictors <- df[, predictor_cols, drop = FALSE]
     outcome_vector <- df[[outcome_col]]
-    model_testing <- paste(paste(predictor_cols, collapse = " + "),outcome_col,sep = " → ")
     cols <- c(predictor_cols,outcome_col)
 
     rf <- tune_rf(df_predictors, outcome_vector, mtry_grid, ntree)
     model_rf <- rf$model
     importance_rf <- as.list(rf$feature_importance[,1])
     names(importance_rf) <- colnames(df_predictors)
-    list_of_importances[[model_testing]] <- importance_rf
+
+
     predictions <- predict(model_rf, df_predictors)
     residuals <- outcome_vector - predictions
 
@@ -181,7 +189,7 @@ causal_entropy_combinations <- function(df,
     importance_rf <- unlist(importance_rf)
 
     H_mixed <-  exp(- e_complete)
-    H_mixed_vector[[model_testing]] <- H_mixed
+
 
     if (verbose) {
       cat('\n')
@@ -191,6 +199,19 @@ causal_entropy_combinations <- function(df,
       cat(" Mean_imp: ", mean(unlist(importance_rf)),"\n")
       cat(" Importances of the variables: ",paste(names(importance_rf),': ',round(importance_rf,2), collapse = '   ', sep = ''))
       cat('\n')
+    }
+
+    if (drill) break;
+    if(all(importance_rf>0)) break;
+    to_remove[[outcome_col]] <- names(importance_rf)[importance_rf<0]
+      }
+
+    if(if_res){
+    model_testing <- paste(paste(predictor_cols, collapse = " + "),outcome_col,sep = " → ")
+    list_of_importances[[model_testing]] <- importance_rf
+    H_mixed_vector[[model_testing]] <- H_mixed
+    } else {
+      next
     }
   }
   invisible(list(entropy = unlist(H_mixed_vector),

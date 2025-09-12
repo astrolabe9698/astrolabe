@@ -126,7 +126,6 @@ robust_scan_all_outcomes <- function(df,
     boot_rels <- parallel_lapply(1:n_boot, function(b) {
       if(!is.null(seed)) set.seed(seed + b)
       df_boot <- df[sample(1:nrow(df), replace = TRUE), all_vars]
-      df_boot <- df_boot[, sample(1:ncol(df_boot))]
       res <- scan_all_outcomes_complete(remove_outliers(df_boot), seed = seed, verbose = FALSE,
                                         ntree = ntree, always_predictors = always_predictors,
                                         categorical_thr = categorical_thr,
@@ -157,7 +156,7 @@ robust_scan_all_outcomes <- function(df,
       freq_perm <- numeric(n_perm)
       for (perm in 1:n_perm) {
         if (verbose) { cat(sprintf("\r     Permutation %d/%d", perm, n_perm)); flush.console() }
-        df_perm <- as.data.frame(lapply(df[, all_vars], sample))
+        df_perm <- as.data.frame(lapply(df, sample))
         perm_boots <- parallel_lapply(1:n_boot, function(b) {
           if(!is.null(seed)) set.seed(seed + perm*1000 + b)
           df_boot <- df_perm[sample(1:nrow(df_perm), replace = TRUE), ]
@@ -180,15 +179,15 @@ robust_scan_all_outcomes <- function(df,
         freq_perm[perm] <- sum(sapply(perm_boots, function(decs) count_partial_hits(decs, predictors, outcome)))
       }
       if (verbose) cat("\n")
-
+      freq_perm <- as.numeric(unlist(freq_perm))
       # Compute empirical p-value
       p_empirical <- (sum(freq_perm >= freq) + 0.1) / (n_perm + 0.1)
 
       if (verbose) {
         sig_flag <- ifelse(p_empirical < alpha, "SIGNIFICANT ✳", "n.s.")
         q <- quantile(freq_perm/length(predictors), probs = c(0.25, 0.5, 0.75))
-        cat(sprintf("   📊 Result: Distribution of permuted bootstrap (B=%d) Q1=%.0f | Q2=%.0f | Q3=%.0f | p_empirical=%.4g | %s (α=%.2f)\n",
-                    n_boot,q[1], q[2], q[3], p_empirical, sig_flag, alpha))
+        cat(sprintf("   📊 Result: Distribution of permuted bootstrap (B=%d) MIN=%.0f | MEDIAN=%.0f | MAX=%.0f | p_empirical=%.4g | %s (α=%.2f)\n",
+                    n_boot,min(freq_perm/length(predictors)), q[2], max(freq_perm/length(predictors)), p_empirical, sig_flag, alpha))
         cat("────────────────────────────────────────────────────────────────────────────────────────────────────────────────\n")
       }
 
@@ -327,8 +326,7 @@ cor_forest_matrix_robust_perm <- function(df,
       if (verbose) cat("   ⏭️  Skipping: both in always_predictors.\n")
       return(NULL)
     }
-
-    df_real <- df[, c(var1, var2)]
+    df_real <- df[,c(var1,var2)]
     res <- scan_all_outcomes_complete(df_real, ntree = ntree, seed = seed, verbose = FALSE,
                                       always_predictors = always_predictors,
                                       categorical_thr = categorical_thr,
@@ -340,15 +338,12 @@ cor_forest_matrix_robust_perm <- function(df,
       return(NULL)
     }
 
-    dec <- if (!is.null(res[[1]]$drill_down_decision)) res[[1]]$drill_down_decision else res[[1]]$outer_layer_decision
+    dec <- res$res_1$outer_layer_decision
+      #if (!is.null(res[[1]]$drill_down_decision)) res[[1]]$drill_down_decision else res[[1]]$outer_layer_decision
     parts <- strsplit(dec, " → ")[[1]]
     predictors <- trimws(strsplit(parts[1], "\\+")[[1]])
     outcome <- trimws(parts[2])
 
-    if (length(predictors) != 1 || !(outcome %in% c(var1, var2))) {
-      if (verbose) cat(sprintf("   ℹ️  Non-binary decision for this pair (%s) — skipping.\n", dec))
-      return(NULL)
-    }
     from <- predictors
     to <- outcome
 
@@ -359,7 +354,7 @@ cor_forest_matrix_robust_perm <- function(df,
 
     freq_boot <- unlist(parallel_lapply(1:B, function(b) {
       if(!is.null(seed)) set.seed(seed + b)
-      df_boot <- df[sample(nrow(df), replace = TRUE), c(var1, var2)]
+      df_boot <- df_real[sample(nrow(df_real), replace = TRUE), ]
       res_boot <- scan_all_outcomes_complete(remove_outliers(df_boot), seed = seed, ntree = ntree, verbose = FALSE,
                                              always_predictors = always_predictors,
                                              categorical_thr = categorical_thr,
@@ -367,7 +362,8 @@ cor_forest_matrix_robust_perm <- function(df,
                                              importance_method = importance_method,
                                              prob = prob)
       if (length(res_boot) == 0) return(0L)
-      dec_boot <- if (!is.null(res_boot[[1]]$drill_down_decision)) res_boot[[1]]$drill_down_decision else res_boot[[1]]$outer_layer_decision
+      dec_boot <- res_boot$res_1$outer_layer_decision
+        #if (!is.null(res_boot[[1]]$drill_down_decision)) res_boot[[1]]$drill_down_decision else res_boot[[1]]$outer_layer_decision
       parts_boot <- strsplit(dec_boot, " → ")[[1]]
       pred_boot <- trimws(strsplit(parts_boot[1], "\\+")[[1]])
       outc_boot <- trimws(parts_boot[2])
@@ -389,31 +385,43 @@ cor_forest_matrix_robust_perm <- function(df,
       cat(sprintf("   🎲 Permutation test (P=%d): shuffling outcome '%s'...\n", P, to))
     }
     # --- Parallelized permutation test ---
-    freq_perm <- unlist(parallel_lapply(1:B, function(b) {
-      df_perm <- df
-      df_perm[[to]] <- sample(df_perm[[to]])  # shuffle outcome
-      df_perm <- df_perm[, c(var1, var2)]
+    freq_perm <- list()
+    for(perm in 1:P){
+      if (verbose) { cat(sprintf("\r       Permutation %d/%d", perm, P)); flush.console() }
+      df_perm <- df_real
+      df_perm <- as.data.frame(lapply(df_real, sample))
 
-      res_perm <- scan_all_outcomes_complete(remove_outliers(df_perm), seed = seed, ntree = ntree, verbose = FALSE,
-                                             always_predictors = always_predictors,
-                                             categorical_thr = categorical_thr,
-                                             quantitative_thr = quantitative_thr,
-                                             importance_method = importance_method,
-                                             prob = prob)
-      if (length(res_perm) == 0) return(0L)
+        freq_perm_boot <- unlist(parallel_lapply(1:B, function(b) {
 
-      # Extract decision for permuted sample
-      dec_perm <- if (!is.null(res_perm[[1]]$drill_down_decision)) res_perm[[1]]$drill_down_decision else res_perm[[1]]$outer_layer_decision
-      parts_perm <- strsplit(dec_perm, " → ")[[1]]
-      pred_perm <- trimws(strsplit(parts_perm[1], "\\+")[[1]])
-      outc_perm <- trimws(parts_perm[2])
+          if(!is.null(seed)) set.seed(seed + perm*1000 + b)
+          df_boot <- df_perm[sample(1:nrow(df_perm), replace = TRUE), ]
 
-      if (identical(pred_perm, from) && outc_perm == to) {
-        return(1L)
-      } else {
-        return(0L)
-      }
-    }, n_cores = n_cores))
+          res_perm_boot <- scan_all_outcomes_complete(remove_outliers(df_boot), seed = seed, ntree = ntree, verbose = FALSE,
+                                                      always_predictors = always_predictors,
+                                                      categorical_thr = categorical_thr,
+                                                      quantitative_thr = quantitative_thr,
+                                                      importance_method = importance_method,
+                                                      prob = prob)
+
+          if (length(res_perm_boot) == 0) return(0L)
+
+          # Extract decision for permuted sample
+          dec_perm_boot <- if (!is.null(res_perm_boot[[1]]$drill_down_decision)) res_perm_boot[[1]]$drill_down_decision
+          parts_perm_boot <- strsplit(dec_perm_boot, " → ")[[1]]
+          pred_perm_boot <- trimws(strsplit(parts_perm_boot[1], "\\+")[[1]])
+          outc_perm_boot <- trimws(parts_perm_boot[2])
+
+          if (pred_perm_boot == from && outc_perm_boot == to) {
+            return(1L)
+          } else {
+            return(0L)
+          }
+        }, n_cores = n_cores))
+
+       freq_perm[[P]] <- sum(as.numeric(freq_perm_boot))/B
+
+    }
+    freq_perm <- unlist(freq_perm)
 
     # Empirical p-value
     p_emp <- (sum(freq_perm >= count_from_to) + 0.1) / (P + 0.1)
@@ -422,8 +430,8 @@ cor_forest_matrix_robust_perm <- function(df,
       sig_flag <- ifelse(p_emp < alpha, "SIGNIFICANT ✳", "n.s.")
       q <- quantile(freq_perm, probs = c(0.25, 0.5, 0.75))
 
-      cat(sprintf("   📊 Result: Distribution of permuted bootstrap (B=%d) Q1=%.0f | Q2=%.0f | Q3=%.0f | p_empirical=%.4g | %s (α=%.2f)\n",
-                  B, q[1], q[2], q[3], p_emp, sig_flag, alpha))
+      cat(sprintf("   📊 Result: Distribution of permuted bootstrap (B=%d) MIN=%.0f | MEDIAN=%.0f | MAX=%.0f | p_empirical=%.4g | %s (α=%.2f)\n",
+                  B, min(freq_perm), q[2], max(freq_perm), p_emp, sig_flag, alpha))
     }
 
     sig <- if (p_emp < alpha) c(from, to) else NULL

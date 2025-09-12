@@ -1,3 +1,116 @@
+#' Remove highly correlated numeric predictors
+#'
+#' Identifica gruppi di variabili numeriche con correlazione assoluta superiore
+#' a una soglia e ne rimuove tutte tranne una per gruppo.
+#' Eventuali variabili specificate in `always_predictors` vengono sempre mantenute
+#' all’interno dei gruppi correlati.
+#'
+#' @param df data.frame
+#'   Dataset di input che può contenere variabili di qualsiasi tipo.
+#' @param always_predictors character
+#'   Vettore di nomi di variabili che devono essere sempre mantenute anche
+#'   se altamente correlate con altre (default: valore di `always_predictors`
+#'   nell'ambiente corrente).
+#' @param threshold numeric
+#'   Soglia di correlazione assoluta per considerare due variabili “altamente correlate”.
+#'   Default: 0.9.
+#' @param verbose logical
+#'   Se TRUE, stampa a console i gruppi di variabili correlate e quali vengono
+#'   mantenute o rimosse. Default: FALSE.
+#'
+#' @return
+#' Un `data.frame` uguale a `df` ma con le variabili numeriche altamente
+#' correlate (oltre la soglia) rimosse, mantenendo per ogni gruppo una sola
+#' variabile (o la variabile specificata in `always_predictors`, se presente).
+#'
+#' @examples
+#' set.seed(123)
+#' df <- data.frame(
+#'   x1 = rnorm(100),
+#'   x2 = rnorm(100),
+#'   x3 = rnorm(100)
+#' )
+#' df$x2 <- df$x1 + rnorm(100, sd = 0.01)  # x1 e x2 fortemente correlati
+#' remove_correlated(df, always_predictors = "x1", threshold = 0.9, verbose = TRUE)
+#'
+#' @export
+remove_correlated <- function(df, always_predictors = always_predictors, threshold = 0.9, verbose = FALSE) {
+  # 1. Select only numeric columns
+  num_vars <- names(df)[sapply(df, is.numeric)]
+  df_num <- df[, num_vars, drop = FALSE]
+
+  # 2. Compute correlation matrix
+  mat_cor <- cor(df_num, use = "pairwise.complete.obs")
+  cor_abs <- abs(mat_cor)
+  diag(cor_abs) <- 0
+
+  # 3. Find correlated pairs
+  pairs_high <- which(cor_abs > threshold, arr.ind = TRUE)
+  if (length(pairs_high) == 0) {
+    if(verbose) cat("No correlated variables found.\n")
+    return(df)
+  }
+
+  pairs_df <- data.frame(
+    var1 = rownames(cor_abs)[pairs_high[, 1]],
+    var2 = colnames(cor_abs)[pairs_high[, 2]],
+    correlation = cor_abs[pairs_high]
+  )
+  pairs_df <- pairs_df[pairs_high[, 1] < pairs_high[, 2], ]
+
+  # 4. Build correlation groups without igraph
+  groups <- list()
+  for (i in seq_len(nrow(pairs_df))) {
+    v1 <- pairs_df$var1[i]
+    v2 <- pairs_df$var2[i]
+
+    found <- FALSE
+    for (j in seq_along(groups)) {
+      if (v1 %in% groups[[j]] || v2 %in% groups[[j]]) {
+        groups[[j]] <- unique(c(groups[[j]], v1, v2))
+        found <- TRUE
+        break
+      }
+    }
+    if (!found) {
+      groups[[length(groups) + 1]] <- c(v1, v2)
+    }
+  }
+
+  # Ensure that singletons (not in any pair) are not counted
+  all_in_groups <- unique(unlist(groups))
+
+  to_remove <- c()
+  kept <- c()
+
+  # 5. Decide which variable to keep in each group
+  for (grp in groups) {
+    keep <- intersect(grp, always_predictors)
+    if (length(keep) == 0) {
+      keep <- grp[1]  # keep the first if no always_predictors
+    } else {
+      keep <- keep[1] # if multiple always_predictors, just pick one
+    }
+    remove <- setdiff(grp, keep)
+
+    kept <- c(kept, keep)
+    to_remove <- c(to_remove, remove)
+
+    if (verbose) {
+      cat("\nGroup: {", paste(grp, collapse = ", "), "}\n")
+      cat("→ Keeping:", keep, "\n")
+      cat("→ Removing:", paste(remove, collapse = ", "), "\n")
+    }
+  }
+
+  # 6. Remove from df
+  df <- df[, !(names(df) %in% to_remove)]
+
+  return(df)
+}
+
+
+
 #' ReLU (Rectified Linear Unit) activation
 #'
 #' Sets all negative values to zero.
@@ -171,8 +284,8 @@ remove_outliers <- function(df) {
     Q1 <- quantile(x, 0.25, na.rm = TRUE)
     Q3 <- quantile(x, 0.75, na.rm = TRUE)
     IQR <- Q3 - Q1
-    lower_bound <- Q1 - 1 * IQR
-    upper_bound <- Q3 + 1 * IQR
+    lower_bound <- Q1 - 1.5 * IQR
+    upper_bound <- Q3 + 1.5 * IQR
     x < lower_bound | x > upper_bound
   }
 

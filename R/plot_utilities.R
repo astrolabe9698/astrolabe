@@ -64,7 +64,7 @@ draw_dag <- function(
     edges,
     curved = NULL,
     layout = "sugiyama",
-    pad = 0.7,
+    pad = 0.6,
     arrow_len_pt = 8,
     end_cap_mm   = 8,
     linewidth    = 0.75,
@@ -78,22 +78,22 @@ draw_dag <- function(
   key <- paste(edges$from, edges$to, sep = "->")
   # ── Default: curve edges if multiple outgoing from same node ─────────────
   curved_flag <- rep(FALSE, nrow(edges))
-  dup_from <- names(which(table(edges$from) > 1))
-  if (length(dup_from) > 0) {
-    curved_flag[edges$from %in% dup_from] <- TRUE
-  }
-  if (!is.null(curved)) {
-    if (is.logical(curved) && length(curved) == nrow(edges)) {
-      curved_flag <- curved
-    } else if (is.character(curved)) {
-      curved_flag <- key %in% curved
-    } else if (is.data.frame(curved) && all(c("from","to") %in% names(curved))) {
-      curved_key <- paste(curved$from, curved$to, sep = "->")
-      curved_flag <- key %in% curved_key
-    } else {
-      stop("Argument 'curved' not recognized: use logical, character 'X->Y', or a data.frame with from/to.")
-    }
-  }
+ # dup_from <- names(which(table(edges$from) > 1))
+  # if (length(dup_from) > 0) {
+  #   curved_flag[edges$from %in% dup_from] <- TRUE
+  # }
+ # if (!is.null(curved)) {
+  #   if (is.logical(curved) && length(curved) == nrow(edges)) {
+  #     curved_flag <- curved
+  #   } else if (is.character(curved)) {
+  #     curved_flag <- key %in% curved
+  #   } else if (is.data.frame(curved) && all(c("from","to") %in% names(curved))) {
+  #     curved_key <- paste(curved$from, curved$to, sep = "->")
+  #     curved_flag <- key %in% curved_key
+  #   } else {
+  #     stop("Argument 'curved' not recognized: use logical, character 'X->Y', or a data.frame with from/to.")
+  #   }
+  # }
   edges$curved <- curved_flag
   strength_val <- ifelse(edges$curved, strength_curved, 0)
 

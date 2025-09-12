@@ -122,7 +122,8 @@ drill_down_scan <- function(df, verdict, importances = list(),
       fit <- causal_entropy_combinations(
         data_red, ntree = ntree,
         fixed_outcome = fixed_outcome,
-        always_predictors = always_predictors
+        always_predictors = always_predictors,
+        drill = TRUE
       )
 
       H_list[[key]] <- fit$entropy
@@ -324,15 +325,23 @@ scan_all_outcomes_complete <- function(df,
   i <- 1
   # Loop over all candidate relationships
   for (name in names(ranked)) { #loop over the relationships found
-    if (verbose) {
-      cat(sprintf("➡️  [%d/%d] ROOT: %s\n", i, length(ranked), name))
-      cat(sprintf("   • Initial entropy (H): %.4f\n", ranked[name]))
-    }
 
     #extract predictors and outcomes
     parts <- strsplit(name, " → ")[[1]]
     predictors <- strsplit(parts[1], " \\+ ")[[1]]
     outcome <- parts[2]
+
+
+    if (verbose) {
+      removed_pred <-setdiff(colnames(df),c(predictors,outcome))
+      scrittina <- ifelse(length(removed_pred)==0,name,paste(paste(removed_pred,collapse = " + "),name,sep= " + "))
+      scrittina2 <- ifelse(length(removed_pred)==0, " ",paste(setdiff(colnames(df),c(predictors,outcome)),collapse = ", "))
+      cat(sprintf("➡️  [%d/%d] Initial ROOT: %s   ", i, length(ranked),
+                  scrittina))
+      if(length(removed_pred)!=0){ cat(sprintf("(%s removed for negative importance)", scrittina2))}
+      cat(sprintf("\n     ROOT: %s\n", name))
+      cat(sprintf("   • Initial entropy (H): %.4f\n", ranked[name]))
+    }
 
     # Get importance values of predictors for this model
     imp_vec <- unlist(imp_all[['n1th_layer']][[name]]) #extract the importances of each variables of the studied model
@@ -356,7 +365,7 @@ scan_all_outcomes_complete <- function(df,
 
     drill_results <- NULL #initialize the drill
     if (length(predictors) > 1) {
-      cat("   ▸ Starting drill-down...\n")
+      if(verbose) cat("   ▸ Starting drill-down...\n")
       #start the drill iteration
       acc <- new.env(parent = emptyenv())
       acc$delete_root <- FALSE
@@ -365,8 +374,9 @@ scan_all_outcomes_complete <- function(df,
       listy[['n1th_layer']] <- list(imp_all$n1th_layer[[name]])
       names(listy[['n1th_layer']]) <- name
 
+      df_rem <- df[,c(predictors,outcome)]
       drill_results <- drill_down_scan(
-        df,
+        df_rem,
         verdict = ranked[name],
         importances = listy,
         removable_predictors = names(imp_removable[imp_removable]),
