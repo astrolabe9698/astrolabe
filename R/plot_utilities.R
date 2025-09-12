@@ -62,8 +62,9 @@
 #' @export
 draw_dag <- function(
     edges,
+    corr_res = NULL,
     curved = NULL,
-    layout = "sugiyama",
+    layout = "kk",
     pad = 0.6,
     arrow_len_pt = 8,
     end_cap_mm   = 8,
@@ -73,30 +74,30 @@ draw_dag <- function(
     strength_curved = 0.6
 ) {
   stopifnot(is.data.frame(edges), all(c("from","to") %in% names(edges)))
+  if (length(corr_res) > 0) {
+    new_edges <- do.call(rbind,
+                         sapply(names(corr_res), function(from_node) {
+                           if (length(corr_res[[from_node]]) == 0) return(NULL)
+                           data.frame(
+                             from = from_node,
+                             to = paste(corr_res[[from_node]], collapse = ","),
+                             custom_color = "linear",
+                             stringsAsFactors = FALSE
+                           )
+                         }, simplify = FALSE)
+    )
 
+    if (!is.null(new_edges)) {
+      edges <- rbind(edges, new_edges)
+    }
+  }
   # Mark which edges should be curved
   key <- paste(edges$from, edges$to, sep = "->")
   # ── Default: curve edges if multiple outgoing from same node ─────────────
   curved_flag <- rep(FALSE, nrow(edges))
- # dup_from <- names(which(table(edges$from) > 1))
-  # if (length(dup_from) > 0) {
-  #   curved_flag[edges$from %in% dup_from] <- TRUE
-  # }
- # if (!is.null(curved)) {
-  #   if (is.logical(curved) && length(curved) == nrow(edges)) {
-  #     curved_flag <- curved
-  #   } else if (is.character(curved)) {
-  #     curved_flag <- key %in% curved
-  #   } else if (is.data.frame(curved) && all(c("from","to") %in% names(curved))) {
-  #     curved_key <- paste(curved$from, curved$to, sep = "->")
-  #     curved_flag <- key %in% curved_key
-  #   } else {
-  #     stop("Argument 'curved' not recognized: use logical, character 'X->Y', or a data.frame with from/to.")
-  #   }
-  # }
+
   edges$curved <- curved_flag
   strength_val <- ifelse(edges$curved, strength_curved, 0)
-
   # Build the graph with the edge attribute included
   g <- igraph::graph_from_data_frame(edges, directed = TRUE)
 
@@ -111,17 +112,38 @@ draw_dag <- function(
   }
   lims <- auto_limits(g, layout = layout, pad = pad)
 
+  mytext <- '
+<span style="color:black"> <b>-</b><b>-</b> linear</span> &nbsp;&nbsp;
+<span style="color:black"><b>→</b> complex</span><br>
+<span style="color:grey65"><b>→</b></span>
+<span style="color:black">pairwise</span> &nbsp;&nbsp;
+<span style="color:#32a852"><b>→</b></span>
+<span style="color:black">both</span>
+'
+
+
+  mygrob <- gridtext::richtext_grob(
+    text = paste0("<b>Legend:</b><br>", mytext),
+    x = unit(0, "npc"),
+    y = unit(0, "npc"),
+    hjust = 0, vjust = 0,
+    gp = grid::gpar(fontsize = 10)
+  )
+
+  all_nodes <- unique(c(edges$from,edges$to))
+  corr_nodes <- edges[edges$custom_color =="linear", "to"]
+
   p <- ggraph(g, layout = layout) +
     geom_edge_arc2(
-      aes(edge_colour = custom_color),
+      aes(edge_colour = custom_color, linetype = custom_color),
       strength = strength_val,
-      arrow   = grid::arrow(type = "closed", length = unit(arrow_len_pt, "pt")),
+      arrow   = grid::arrow(type = "closed", length = unit(ifelse(edges$custom_color=="linear",0, arrow_len_pt), "pt")),
       end_cap = circle(end_cap_mm, "mm"),
       linewidth = linewidth) +
-    scale_edge_color_manual(name = 'Type', values = c('pairwise' = 'grey65','complex' = 'black','both' = '#32a852'))
-
-  p + geom_node_point(size = node_size, shape = 21, fill = "#bae3c5",
-                      color = "black", stroke = node_stroke) +
+    scale_edge_color_manual(name = 'Type', values = c('pairwise' = 'grey65','complex' = 'black','both' = '#32a852',"linear"="black"), guide="none")+
+    scale_edge_linetype_manual(values = c('pairwise' = 'solid','complex' = 'solid','both' = 'solid', "linear" = "dashed"), guide="none")+
+    geom_node_point(size = node_size, shape = 21, fill = ifelse(all_nodes%in%corr_nodes,"#b7e8f7","#bae3c5"),
+                    color = "black", stroke = node_stroke) +
     geom_node_text(aes(label = name), size = 5, color = "black",
                    vjust = 0.5, fontface = "bold") +
     theme_void() +
@@ -132,10 +154,17 @@ draw_dag <- function(
       legend.position   = "top",
       legend.box        = "vertical",
       legend.box.just   = "center",
-      legend.box.margin = margin(t = 8, r = 0, b = 0, l = 0),  # spacing between panel and legend
-      plot.margin       = margin(t = 16, r = 16, b = 12, l = 16),
+      legend.box.margin = margin(t = 35, r = 0, b = 0, l = 0),
+      plot.margin       = margin(t = 0, r = 0, b = 0, l = 0),
       legend.title = element_text(size = 15),
       legend.text  = element_text(size = 12)
+    ) +
+    annotation_custom(
+      grob = mygrob,
+      xmin = lims$xlim[1]+0.1, xmax = lims$xlim[2],
+      ymin = lims$ylim[2]-0.5, ymax = lims$ylim[2]
     )
+
+  p
 }
 

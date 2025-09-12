@@ -21,7 +21,7 @@ complete_function(
   prob = 0.75,
   plot = TRUE,
   curved = NULL,
-  layout = "auto",
+  layout = "kk",
   pad = 0.6,
   arrow_len_pt = 8,
   end_cap_mm = 8,

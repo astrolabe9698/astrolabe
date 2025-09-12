@@ -116,7 +116,7 @@ complete_function <- function(df,
                                #plot parameters
                                plot = TRUE,
                                curved = NULL,
-                               layout = "auto",
+                               layout = "kk",
                                pad = 0.6,
                                arrow_len_pt = 8,
                                end_cap_mm   = 8,
@@ -220,8 +220,9 @@ complete_function <- function(df,
 
   if (verbose) cat("\nRemove linearly dependent variables if present...\n")
 
-  df<-remove_correlated(df, always_predictors = "Extracellular Water (ECW)", threshold = 0.9, verbose = verbose)
-
+  m_corr <- remove_correlated(df, always_predictors = always_predictors, threshold = 0.9, verbose = verbose)
+  df <- m_corr$df
+  corr_variables <- m_corr$corr_variables
 
   if(ncol(as.data.frame(df)) < 2){
     if(verbose) cat('\n No enough survived variables \n')
@@ -345,6 +346,7 @@ complete_function <- function(df,
       if (verbose) cat("\nℹ️  Nothing to plot (no results produced in this mode).\n")
     } else {
       g <- draw_dag(res_all,
+                    corr_res = corr_variables,
                     curved = curved,
                     layout = layout,
                     pad = pad,
@@ -361,6 +363,7 @@ complete_function <- function(df,
   if (verbose) cat("\n✅ Done.\n")
 
   return(list(
+    corr_variables = corr_variables,
     scan_res = scan_results,
     robust   = robust_scan,
     binary   = binary_res,

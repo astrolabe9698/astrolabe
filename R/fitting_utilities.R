@@ -159,9 +159,9 @@ causal_entropy_combinations <- function(df,
     fixed_outcome
   }
 
-  if_res <- TRUE
   to_remove <-list()
   for (outcome_col in outcomes) {
+    if_res <- TRUE
     to_remove <- list()
     predictor_cols <- setdiff(colnames(df), outcome_col)
     while (TRUE){

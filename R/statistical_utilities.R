@@ -348,7 +348,7 @@ cor_forest_matrix_robust_perm <- function(df,
     to <- outcome
 
     if (verbose) {
-      cat(sprintf("   ✔️  Candidate direction: %s → %s\n", from, to))
+      cat(sprintf("   ✔️ Candidate direction: %s → %s\n", from, to))
       cat(sprintf("   🔁 Bootstrapping real data (B=%d)...\n", B))
     }
 
@@ -375,7 +375,7 @@ cor_forest_matrix_robust_perm <- function(df,
 
     # Skip permutation test if frequency too low
     if (count_from_to < 0.5*B) {
-      if (verbose) cat("   ⚠️  Frequency too low (<50%); skipping permutation test for this pair.\n")
+      if (verbose) cat("   ⚠️ Frequency too low (<50%); skipping permutation test for this pair.\n")
       return(list(real = c(from, to),
                   freq = c(from, to, count_from_to),
                   sig = NULL))
@@ -387,7 +387,7 @@ cor_forest_matrix_robust_perm <- function(df,
     # --- Parallelized permutation test ---
     freq_perm <- list()
     for(perm in 1:P){
-      if (verbose) { cat(sprintf("\r       Permutation %d/%d", perm, P)); flush.console() }
+      if (verbose) { cat(sprintf("\r      Permutation %d/%d", perm, P)); flush.console() }
       df_perm <- df_real
       df_perm <- as.data.frame(lapply(df_real, sample))
 
@@ -430,7 +430,7 @@ cor_forest_matrix_robust_perm <- function(df,
       sig_flag <- ifelse(p_emp < alpha, "SIGNIFICANT ✳", "n.s.")
       q <- quantile(freq_perm, probs = c(0.25, 0.5, 0.75))
 
-      cat(sprintf("   📊 Result: Distribution of permuted bootstrap (B=%d) MIN=%.0f | MEDIAN=%.0f | MAX=%.0f | p_empirical=%.4g | %s (α=%.2f)\n",
+      cat(sprintf("\n   📊 Result: Distribution of permuted bootstrap (B=%d) MIN=%.0f | MEDIAN=%.0f | MAX=%.0f | p_empirical=%.4g | %s (α=%.2f)\n",
                   B, min(freq_perm), q[2], max(freq_perm), p_emp, sig_flag, alpha))
     }
 

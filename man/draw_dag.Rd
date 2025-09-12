@@ -6,8 +6,9 @@
 \usage{
 draw_dag(
   edges,
+  corr_res = NULL,
   curved = NULL,
-  layout = "sugiyama",
+  layout = "kk",
   pad = 0.6,
   arrow_len_pt = 8,
   end_cap_mm = 8,

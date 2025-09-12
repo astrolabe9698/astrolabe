@@ -48,7 +48,7 @@ remove_correlated <- function(df, always_predictors = always_predictors, thresho
   pairs_high <- which(cor_abs > threshold, arr.ind = TRUE)
   if (length(pairs_high) == 0) {
     if(verbose) cat("No correlated variables found.\n")
-    return(df)
+    return(list(df = df,corr_variables = NULL))
   }
 
   pairs_df <- data.frame(
@@ -82,7 +82,7 @@ remove_correlated <- function(df, always_predictors = always_predictors, thresho
 
   to_remove <- c()
   kept <- c()
-
+  corr_variables <- list()
   # 5. Decide which variable to keep in each group
   for (grp in groups) {
     keep <- intersect(grp, always_predictors)
@@ -96,6 +96,8 @@ remove_correlated <- function(df, always_predictors = always_predictors, thresho
     kept <- c(kept, keep)
     to_remove <- c(to_remove, remove)
 
+    corr_variables[[keep]] <- remove
+
     if (verbose) {
       cat("\nGroup: {", paste(grp, collapse = ", "), "}\n")
       cat("→ Keeping:", keep, "\n")
@@ -104,9 +106,9 @@ remove_correlated <- function(df, always_predictors = always_predictors, thresho
   }
 
   # 6. Remove from df
-  df <- df[, !(names(df) %in% to_remove)]
+  df_without_corr <- df[, !(names(df) %in% to_remove)]
 
-  return(df)
+  return(list(df = df_without_corr,corr_variables = corr_variables))
 }
 
 
